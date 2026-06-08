@@ -1,8 +1,8 @@
-# Codex Task: Normalize Project Docs
+# Codex Task: Normalize Project Docs And Update Active Spec
 
 ## Goal
 
-Normalize the Maintenance Mode Studio planning docs so all docs, specs, and prompts agree on one canonical project identity, scope, and folder structure before implementation starts.
+Normalize the Maintenance Mode Studio planning docs so all docs, specs, and prompts agree on one canonical project identity, Phase 1 scope, and folder structure before implementation starts.
 
 ## Project Constants
 
@@ -10,10 +10,11 @@ Use these values everywhere:
 
     Plugin name: Maintenance Mode Studio
     Extended title: Maintenance Mode Studio - Coming Soon, Games, Forms and Interactive Pages
-    Publisher: Maneuvrez
-    Publisher domain: https://maneuvrez.com
+    Publisher: Abu Hurarrah
+    Publisher domain: https://abuhurarrah.com
     Creator credit: Abu Hurarrah
     Creator domain: https://abuhurarrah.com
+    Contact email: hello@abuhurarrah.com
     Slug: maintenance-mode-studio
     Prefix: mmsm_
     PHP namespace: Maneuvrez\MaintenanceModeStudio
@@ -32,7 +33,6 @@ Update these files if needed:
     docs/constitution/security.md
     docs/roadmap/phases.md
     specs/features/active.md
-    specs/prompts/codex/000-update-active-spec.md
     specs/prompts/codex/001-plugin-shell.md
     specs/prompts/review/001-plugin-shell-review.md
 
@@ -57,6 +57,23 @@ All docs and specs must agree that Phase 1 creates this structure:
     public/assets/public.css
     public/assets/public.js
 
+## Required Active Spec Sections
+
+Update `specs/features/active.md` so it uses these sections:
+
+- Objective
+- Scope
+- Files to create
+- Files not to touch
+- Acceptance criteria
+- Security rules
+- Testing checklist
+- Done criteria
+- Out of scope
+- Implementation notes
+
+The active spec must describe only the first implementation milestone.
+
 ## Required Phase 1 Scope
 
 Phase 1 includes:
@@ -69,6 +86,7 @@ Phase 1 includes:
 - Basic maintenance mode setting
 - Basic frontend maintenance router
 - Basic default public template
+- Scoped frontend CSS and JS foundation
 - Logged-in admin bypass
 - Login page bypass
 - REST, AJAX, cron, and WP-CLI bypass
@@ -147,6 +165,7 @@ Make sure the roadmap does not conflict with `specs/features/active.md`.
 - `specs/features/active.md` describes only Phase 1.
 - Codex prompt `001-plugin-shell.md` matches the active spec.
 - Review prompt `001-plugin-shell-review.md` matches the active spec.
+- The legacy `000-update-active-spec.md` prompt is no longer the source of truth.
 - No docs reference old names, old domains, or flat class paths.
 - No implementation files are created in this task.
 

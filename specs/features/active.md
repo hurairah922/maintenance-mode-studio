@@ -1,118 +1,59 @@
-# specs/features/active.md
-
-# Active Feature Spec — Maintenance Mode Studio MVP Foundation
+# Active Feature Spec — Maintenance Mode Studio Phase 1
 
 ## 1. Objective
 
-Build the first working foundation of Maintenance Mode Studio.
+Build the first working implementation milestone for Maintenance Mode Studio.
 
-The first milestone must produce a real WordPress plugin that can:
+Phase 1 must produce a real WordPress plugin that:
 
-- activate safely
-- show an admin settings page
-- enable/disable maintenance mode
-- bypass logged-in administrators
-- render a polished default maintenance page for logged-out visitors
-- use the approved product prefix, namespace, text domain, and folder structure
+- activates safely
+- deactivates cleanly
+- shows an admin page placeholder
+- saves one basic maintenance mode setting securely
+- bypasses logged-in administrators
+- keeps `wp-login.php`, REST, AJAX, cron, and WP-CLI accessible
+- renders a default maintenance page for logged-out visitors when enabled
 
-## 2. Locked Product Decisions
+## 2. Scope
 
-```text
-Name: Maintenance Mode Studio
-Extended title: Maintenance Mode Studio — Coming Soon, Games, Forms & Interactive Pages
-Publisher: Maneuvrez
-Creator credit: Abu Hurairah / Shafi
-Slug: maintenance-mode-studio
-Prefix: mmsm_
-Namespace: Maneuvrez\MaintenanceModeStudio
-Text domain: maintenance-mode-studio
-REST namespace: mmsm/v1
-Admin stack: React with @wordpress/scripts
-Frontend stack: PHP templates + vanilla JS modules
-Builder: drag-and-drop zones + preview
-First game: Reaction Challenge
-Spam V1: honeypot + nonce + rate limit + hashed IP
-Captcha: optional later integration
-Secret bypass links: yes
-WooCommerce: safe compatibility only in V1
-Multisite: basic compatibility only, no network dashboard in V1
-```
+This spec covers Phase 1 only:
 
-## 3. First Coding Milestone
+- plugin bootstrap
+- plugin constants
+- namespaced loader
+- activation hook
+- deactivation hook
+- text domain loading
+- admin page placeholder
+- basic maintenance mode setting
+- basic frontend maintenance router
+- basic default public template
+- scoped frontend CSS and JS foundation
+- safe bypass rules for admin, login, REST, AJAX, cron, and WP-CLI
 
-### Milestone Name
+## 3. Files To Create
 
-Plugin Core Shell + Basic Maintenance Renderer
-
-### Required Features
-
-1. Main plugin bootstrap file.
-2. Plugin constants.
-3. Namespaced core loader.
-4. Activation/deactivation classes.
-5. Admin settings page.
-6. Maintenance mode setting.
-7. Mode type setting.
-8. Frontend maintenance router.
-9. Logged-in administrator bypass.
-10. Login page bypass.
-11. REST/AJAX bypass.
-12. Basic public template.
-13. Scoped frontend CSS.
-14. Scoped frontend JS foundation.
-15. Translation-ready strings.
-16. Security comments on important flows.
-
-## 4. Initial Admin Settings
-
-V1 foundation settings:
-
-```text
-Enable Maintenance Mode: boolean
-Mode Type: maintenance | coming_soon | launch | private
-Page Title: string
-Page Message: textarea
-Theme Mode: dark | light
-Primary Color: color
-Accent Color: color
-Show Login Button: boolean
-```
-
-## 5. Initial Frontend Page
-
-The default page must include:
-
-- logo placeholder or site name
-- status badge
-- title
-- message
-- simple interactive visual object
-- login button if enabled
-- footer credit hidden/controlled later
-
-The frontend must be responsive from 320px to widescreen.
-
-## 6. Initial File Structure
+Create only these Phase 1 files:
 
 ```text
 maintenance-mode-studio/
 ├── maintenance-mode-studio.php
 ├── readme.txt
-├── package.json
-├── composer.json
-├── phpcs.xml.dist
 ├── uninstall.php
+├── composer.json
+├── package.json
+├── phpcs.xml.dist
 ├── includes/
-│   ├── Plugin.php
+│   ├── Admin/
+│   │   └── Admin.php
+│   ├── Frontend/
+│   │   ├── MaintenanceRouter.php
+│   │   └── TemplateRenderer.php
+│   ├── Security/
+│   │   └── Sanitizer.php
 │   ├── Activator.php
 │   ├── Deactivator.php
-│   ├── Settings.php
-│   ├── Admin.php
-│   ├── MaintenanceRouter.php
-│   ├── TemplateRenderer.php
-│   ├── AssetManager.php
-│   └── Security/
-│       └── Sanitizer.php
+│   └── Plugin.php
 ├── public/
 │   ├── templates/
 │   │   └── default.php
@@ -124,51 +65,124 @@ maintenance-mode-studio/
 │       ├── index.js
 │       └── index.scss
 ├── build/
-└── languages/
+├── languages/
+│   ├── maintenance-mode-studio.pot
+│   ├── maintenance-mode-studio-fr_FR.po
+│   └── maintenance-mode-studio-fr_FR.mo
+
 ```
 
-## 7. Security Requirements
+## 4. Files Not To Touch
+
+Do not introduce Phase 2+ feature files yet.
+
+Do not create:
+
+- forms modules
+- games modules
+- leaderboard modules
+- bypass token modules
+- custom CSS editor files
+- custom JS editor files
+- uploads handling files
+- Pro or payments files
+
+## 5. Acceptance Criteria
+
+Phase 1 is acceptable when:
+
+- the plugin appears in WordPress admin
+- the plugin activates without fatal errors
+- the plugin deactivates without fatal errors
+- the admin page loads for authorized users
+- the maintenance mode setting can be saved
+- logged-in administrators are not blocked
+- logged-out visitors see the default maintenance page only when the mode is enabled
+- `wp-login.php` remains accessible
+- REST requests are not blocked
+- AJAX requests are not blocked
+- WP-Cron is not blocked
+- WP-CLI is not blocked
+- all visible strings are translation-ready
+- all public output is escaped
+- all saved input is sanitized
+
+## 6. Security Rules
 
 The milestone must include:
 
-- `defined( 'ABSPATH' ) || exit;` in PHP files
-- capability checks for settings
-- nonce checks for settings forms
-- sanitized settings
-- escaped frontend output
-- no raw user input output
-- no custom JS yet
-- no uploads yet
+- `defined( 'ABSPATH' ) || exit;` in every PHP file
+- capability checks for admin pages and settings actions
+- nonce checks for settings actions
+- sanitized settings before save
+- escaped output at render time
+- no raw user input in templates
 - no public forms yet
+- no uploads yet
+- no custom JS yet
+
+## 7. Testing Checklist
+
+Verify:
+
+- plugin activation
+- plugin deactivation
+- admin page load
+- settings save and reload
+- logged-out frontend behavior when disabled
+- logged-out frontend behavior when enabled
+- administrator bypass behavior
+- login page accessibility
+- REST request accessibility
+- AJAX request accessibility
+- cron request accessibility
+- WP-CLI safety
+- responsive frontend rendering
 
 ## 8. Done Criteria
 
-The milestone is done when:
+This phase is done when:
 
-- plugin activates
-- plugin does not fatal on frontend/admin
-- admin can enable maintenance mode
-- logged-out visitor sees the maintenance page
-- logged-in administrator sees real site
-- login page remains accessible
-- REST requests are not blocked
-- settings persist
-- frontend page is responsive
-- basic coding standard structure is in place
+- all acceptance criteria pass
+- the directory structure matches this spec
+- the plugin shell is stable on frontend and admin
+- no out-of-scope features were added early
 
-## 9. Not Included Yet
+## 9. Out Of Scope
 
-These are intentionally excluded from the first coding milestone:
+Do not implement in Phase 1:
 
-- drag-and-drop builder
-- React preview app
-- form submissions
+- drag-and-drop zones
+- visual preview builder
+- forms
+- surveys
 - CSV export
 - Reaction Challenge
 - leaderboard
-- bypass links
-- custom CSS
-- custom JS
+- secret bypass links
+- custom CSS editor
+- custom JS editor
 - uploaded 3D assets
 - multiple experiences
 - WooCommerce-specific controls
+- payments or license systems
+
+## 10. Implementation Notes
+
+Use these locked project constants:
+
+```text
+Name: Maintenance Mode Studio
+Extended title: Maintenance Mode Studio - Coming Soon, Games, Forms and Interactive Pages
+Publisher: Abu Hurarrah
+Creator credit: Abu Hurarrah
+Creator domain: https://abuhurarrah.com
+Contact email: hello@abuhurarrah.com
+Slug: maintenance-mode-studio
+Prefix: mmsm_
+Namespace: Maneuvrez\MaintenanceModeStudio
+Text domain: maintenance-mode-studio
+REST namespace: mmsm/v1
+```
+
+Phase 1 should stay intentionally small. The goal is a dependable plugin shell with a minimal maintenance-mode flow, not a full builder or full V1 feature set.
