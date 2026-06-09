@@ -55,8 +55,19 @@ if ( ! defined( 'MMSM_VERSION_OPTION' ) ) {
 	define( 'MMSM_VERSION_OPTION', 'mmsm_version' );
 }
 
+require_once MMSM_PLUGIN_PATH . 'includes/Settings/SettingsSchema.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Settings/SettingsRepository.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Support/Escaper.php';
 require_once MMSM_PLUGIN_PATH . 'includes/Security/Sanitizer.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Components/ComponentInterface.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Components/HeroComponent.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Components/SocialLinksComponent.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Components/ContactRevealComponent.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Components/LoginComponent.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Components/StatusProgressComponent.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Components/ComponentRegistry.php';
 require_once MMSM_PLUGIN_PATH . 'includes/Admin/Admin.php';
+require_once MMSM_PLUGIN_PATH . 'includes/Frontend/TemplateRegistry.php';
 require_once MMSM_PLUGIN_PATH . 'includes/Frontend/TemplateRenderer.php';
 require_once MMSM_PLUGIN_PATH . 'includes/Frontend/MaintenanceRouter.php';
 require_once MMSM_PLUGIN_PATH . 'includes/Activator.php';

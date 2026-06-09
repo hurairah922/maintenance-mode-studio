@@ -2,763 +2,633 @@
 
 ## Feature
 
-Maintenance Mode — Phase 2: Admin Settings Foundation
+Template and Component Registry
 
-## Status
+## Phase
 
-Active
+Phase 3
 
-## Owner
+## Goal
 
-Abu Hurarrah
+Render polished public maintenance pages and define reusable frontend building blocks.
 
-## Publisher
+This phase moves the plugin from a basic settings-driven maintenance screen into a flexible frontend system.
 
-Abu Hurarrah
+The public page should render through templates, components, saved settings, safe defaults, and responsive layout rules.
 
-## Company
+## Build Scope
 
-Maneuvrez
+Phase 3 includes the following work:
 
-## Phase Goal
+* PHP template renderer
+* Template registry
+* Component registry
+* Zone compatibility rules
+* Theme variables
+* Light and dark mode support
+* Responsive public shell
+* Default copy
+* Asset loading per template
+* Component settings schema
+* Hero component
+* Social links component
+* Contact reveal component
+* Login component
+* Status/progress component
 
-Expand the basic Phase 1 maintenance mode shell into a settings-driven mode manager.
+## Exit Criteria
 
-The public maintenance page already appears in Phase 1. Phase 2 should allow the site owner to control the main public template content and appearance from the WordPress admin.
+Phase 3 is complete when:
 
-## Primary Outcome
-
-A WordPress admin user can configure the maintenance mode experience without editing code.
-
-The settings should cover the current Phase 1 public template, persist safely, and keep the admin experience simple.
-
-## Scope
-
-Build the admin settings foundation for:
-
-- mode type selection
-- page title and message settings
-- theme mode controls
-- color controls
-- login button visibility setting
-- asset loading foundation
-- settings UX cleanup
+* At least one polished template renders cleanly
+* The public page works across desktop, tablet, mobile, and small mobile
+* Components render from saved settings
+* Empty states are handled safely
+* Templates only load their required assets
+* Components do not break the page when settings are missing
+* Public output is escaped safely
+* Admin settings remain simple and understandable
 
 ## Non-Goals
 
-Do not build advanced templates in this phase.
+Phase 3 does not include:
 
-Do not add countdown timers in this phase.
+* Drag-and-drop page builder
+* Advanced animation system
+* Multiple complex templates
+* Email capture backend
+* Analytics dashboard
+* Third-party integrations
+* Block editor integration
+* Custom CSS editor
+* Import/export system
 
-Do not add email capture in this phase.
+## Current Assumptions
 
-Do not add third-party integrations in this phase.
+The plugin already has:
 
-Do not build a full design system in this phase.
+* A working plugin shell
+* A basic maintenance mode router
+* Public maintenance mode rendering
+* Admin settings persistence
+* Basic page title and message settings
+* Theme mode and color controls
+* Login button setting
+* Asset loading foundation
 
-Do not add analytics in this phase.
+If any of these are missing, Phase 3 should preserve the current working behavior and add only the minimum structure needed to continue safely.
 
-Do not add role-based access controls beyond the existing admin capability checks.
+## Recommended Directory Structure
 
-## User Story
-
-As a WordPress site owner, I want to configure the maintenance mode page from the admin panel so I can update the page title, message, visual style, and login button without changing plugin code.
-
-## Functional Requirements
-
-### 1. Mode Type Selection
-
-Add a setting for the public mode type.
-
-Supported mode types:
-
-- `maintenance`
-- `coming_soon`
-
-Default value:
-
-```text
-maintenance
-```
-
-Admin label:
+Use this structure as the canonical Phase 3 target:
 
 ```text
-Mode Type
+maintenance-mode/
+├── maintenance-mode.php
+├── assets/
+│   ├── css/
+│   │   └── public-template-default.css
+│   └── js/
+│       └── public-template-default.js
+├── includes/
+│   ├── Admin/
+│   │   └── Admin.php
+│   ├── Components/
+│   │   ├── ComponentInterface.php
+│   │   ├── ComponentRegistry.php
+│   │   ├── ContactRevealComponent.php
+│   │   ├── HeroComponent.php
+│   │   ├── LoginComponent.php
+│   │   ├── SocialLinksComponent.php
+│   │   └── StatusProgressComponent.php
+│   ├── Frontend/
+│   │   ├── MaintenanceRouter.php
+│   │   ├── TemplateRenderer.php
+│   │   └── TemplateRegistry.php
+│   ├── Settings/
+│   │   ├── SettingsRepository.php
+│   │   └── SettingsSchema.php
+│   └── Support/
+│       └── Escaper.php
+├── templates/
+│   └── public/
+│       └── default.php
+├── specs/
+│   ├── features/
+│   │   └── active.md
+│   └── prompts/
+│       └── codex/
+│           ├── 003-template-component-registry-execution.md
+│           └── 003-template-component-registry-review.md
+└── README.md
 ```
 
-Admin help text:
+## Architecture Overview
+
+Phase 3 should introduce a clean separation between:
+
+* The router that decides when to show maintenance mode
+* The template renderer that renders the selected public template
+* The template registry that defines available templates
+* The component registry that defines available components
+* Component classes that render reusable sections
+* Settings schema that defines safe defaults and allowed values
+* Assets that load only when the selected template needs them
+
+The public page should not contain hardcoded business logic.
+
+The template should receive normalized settings and render registered components.
+
+## Template Renderer
+
+Create a PHP template renderer responsible for rendering public templates.
+
+The renderer should:
+
+* Accept the selected template key
+* Resolve the template from the template registry
+* Load normalized settings
+* Pass settings into the template
+* Render components through the component registry
+* Escape output safely
+* Fall back to the default template if the selected template is missing
+* Avoid fatal errors when templates or components are unavailable
+
+The renderer should not:
+
+* Directly read raw `$_POST`, `$_GET`, or `$_REQUEST`
+* Save settings
+* Register admin fields
+* Contain component-specific business logic
+* Echo unsafe values
+
+## Template Registry
+
+Create a template registry that defines available public templates.
+
+Each template should include:
+
+* Template key
+* Template name
+* Template description
+* Template file path
+* Supported zones
+* Required frontend assets
+* Default component layout
+
+The first template should be:
 
 ```text
-Choose whether the public page should show as maintenance mode or coming soon mode.
+default
 ```
 
-Expected behavior:
-
-- `maintenance` should represent a temporary site maintenance state.
-- `coming_soon` should represent a pre-launch or upcoming website state.
-- The selected mode should be saved in WordPress options.
-- Invalid values should fall back to `maintenance`.
-
-### 2. Page Title Setting
-
-Add a setting for the public page title.
-
-Default value:
-
-```text
-Maintenance Mode
-```
-
-Admin label:
-
-```text
-Page Title
-```
-
-Expected behavior:
-
-- The saved title should appear on the public maintenance page.
-- The title should be sanitized before saving.
-- The title should be escaped before rendering.
-- Empty values should fall back to the default value.
-
-### 3. Message Setting
-
-Add a setting for the public page message.
-
-Default value:
-
-```text
-Our website is currently undergoing scheduled maintenance. Please check back soon.
-```
-
-Admin label:
-
-```text
-Message
-```
-
-Expected behavior:
-
-- The saved message should appear on the public maintenance page.
-- The message should support plain text only in this phase.
-- The message should be sanitized before saving.
-- The message should be escaped before rendering.
-- Empty values should fall back to the default value.
-
-### 4. Theme Mode Setting
-
-Add a setting for the public page theme mode.
-
-Supported theme modes:
-
-- `light`
-- `dark`
-
-Default value:
-
-```text
-light
-```
-
-Admin label:
-
-```text
-Theme Mode
-```
-
-Expected behavior:
-
-- The selected theme should affect the public maintenance page styling.
-- Invalid values should fall back to `light`.
-- Theme classes should be applied safely to the public template wrapper.
-
-Example wrapper classes:
-
-```text
-mm-public-template mm-theme-light
-mm-public-template mm-theme-dark
-```
-
-### 5. Color Controls
-
-Add a primary color setting for the public page.
-
-Default value:
-
-```text
-#2563eb
-```
-
-Admin label:
-
-```text
-Primary Color
-```
-
-Expected behavior:
-
-- The primary color should control key visual accents.
-- The value should be validated as a hex color.
-- Invalid values should fall back to the default color.
-- The color should be escaped before output.
-
-Recommended use cases:
-
-- button background
-- accent border
-- highlight color
-- focus state where relevant
-
-### 6. Login Button Setting
-
-Add a setting to show or hide the login button on the public maintenance page.
-
-Supported values:
-
-- `1`
-- `0`
-
-Default value:
-
-```text
-1
-```
-
-Admin label:
-
-```text
-Show Login Button
-```
-
-Expected behavior:
-
-- When enabled, the public page should show a login button.
-- When disabled, the login button should not render.
-- The login button should point to the WordPress login URL.
-- The login URL should be generated with `wp_login_url()`.
-- The login URL should be escaped with `esc_url()`.
-
-Default button text:
-
-```text
-Log in
-```
-
-### 7. Asset Loading Foundation
-
-Add a clean asset loading foundation for admin and public styles.
-
-Expected behavior:
-
-- Public styles should load only when the maintenance template is being rendered.
-- Admin styles should load only on the plugin settings page.
-- Asset handles should use a consistent plugin prefix.
-- Asset URLs should be generated from plugin constants or a shared plugin helper.
-- Asset versions should use the plugin version constant.
-
-Recommended handles:
-
-```text
-maintenance-mode-public
-maintenance-mode-admin
-```
-
-Recommended files:
-
-```text
-assets/css/public.css
-assets/css/admin.css
-```
-
-### 8. Settings UX Cleanup
-
-Improve the settings page so it stays simple and readable.
-
-Expected behavior:
-
-- Use clear field labels.
-- Use short help text.
-- Group related settings together.
-- Keep the page focused on Phase 2 controls only.
-- Avoid cluttered layout or unnecessary advanced options.
-- Show a clear save button.
-- Use WordPress admin UI patterns where possible.
-
-Recommended settings sections:
-
-```text
-Mode
-Content
-Appearance
-Access
-```
-
-## Data Model
-
-Use a single WordPress option array for Phase 2 settings.
-
-Recommended option name:
-
-```text
-maintenance_mode_settings
-```
-
-Recommended option shape:
+Suggested template metadata:
 
 ```php
 [
-    'mode_type' => 'maintenance',
-    'page_title' => 'Maintenance Mode',
-    'message' => 'Our website is currently undergoing scheduled maintenance. Please check back soon.',
-    'theme_mode' => 'light',
-    'primary_color' => '#2563eb',
-    'show_login_button' => '1',
+    'key' => 'default',
+    'name' => 'Default',
+    'description' => 'A polished maintenance mode page with hero, status, contact, social, and login sections.',
+    'file' => 'templates/public/default.php',
+    'zones' => [
+        'main',
+        'footer',
+    ],
+    'assets' => [
+        'styles' => [
+            'public-template-default',
+        ],
+        'scripts' => [
+            'public-template-default',
+        ],
+    ],
 ]
 ```
 
-## Default Settings
+## Component Registry
 
-Create one shared defaults method or function.
+Create a component registry that defines reusable frontend components.
 
-Required defaults:
+The registry should support:
 
-```php
-[
-    'mode_type' => 'maintenance',
-    'page_title' => 'Maintenance Mode',
-    'message' => 'Our website is currently undergoing scheduled maintenance. Please check back soon.',
-    'theme_mode' => 'light',
-    'primary_color' => '#2563eb',
-    'show_login_button' => '1',
-]
-```
+* Registering components by key
+* Checking whether a component exists
+* Getting component metadata
+* Rendering a component safely
+* Returning available components
+* Enforcing zone compatibility
 
-Expected behavior:
+The first registered components should be:
 
-- Defaults should be merged with saved settings before use.
-- Missing keys should not break the public template.
-- Invalid values should be normalized.
-- The public template should always have safe fallback values.
+* Hero
+* Social links
+* Contact reveal
+* Login
+* Status/progress
 
-## Sanitization Rules
+## Component Interface
 
-### `mode_type`
+Each component should follow a shared interface.
 
-Allowed values:
+The interface should support:
 
-```text
-maintenance
-coming_soon
-```
+* Getting the component key
+* Getting the component label
+* Getting supported zones
+* Getting settings schema
+* Rendering output from normalized settings
 
-Fallback:
-
-```text
-maintenance
-```
-
-### `page_title`
-
-Sanitization:
+Suggested interface behavior:
 
 ```php
-sanitize_text_field()
+interface ComponentInterface
+{
+    public function get_key(): string;
+
+    public function get_label(): string;
+
+    public function get_supported_zones(): array;
+
+    public function get_settings_schema(): array;
+
+    public function render(array $settings = []): string;
+}
 ```
 
-Fallback:
+## Zone Compatibility Rules
+
+Templates should define zones.
+
+Components should define which zones they can render inside.
+
+Initial zones:
 
 ```text
-Maintenance Mode
+main
+footer
 ```
 
-### `message`
+Suggested compatibility:
 
-Sanitization:
+| Component       | Main Zone | Footer Zone |
+| --------------- | --------: | ----------: |
+| Hero            |       Yes |          No |
+| Status/progress |       Yes |          No |
+| Contact reveal  |       Yes |         Yes |
+| Social links    |        No |         Yes |
+| Login           |        No |         Yes |
 
-```php
-sanitize_textarea_field()
+If a component is assigned to an incompatible zone, the renderer should skip it safely.
+
+It should not throw a fatal error.
+
+## Theme Variables
+
+The public template should use CSS variables for theme control.
+
+Required variables:
+
+```css
+--mm-bg;
+--mm-surface;
+--mm-text;
+--mm-muted;
+--mm-border;
+--mm-primary;
+--mm-primary-text;
+--mm-shadow;
+--mm-radius;
+--mm-content-width;
 ```
 
-Fallback:
+The renderer should expose theme settings as safe class names and CSS variables.
 
-```text
-Our website is currently undergoing scheduled maintenance. Please check back soon.
-```
+Do not output untrusted CSS without validation.
 
-### `theme_mode`
+## Light and Dark Mode
 
-Allowed values:
+Support these theme modes:
 
 ```text
 light
 dark
-```
-
-Fallback:
-
-```text
-light
-```
-
-### `primary_color`
-
-Sanitization:
-
-```php
-sanitize_hex_color()
-```
-
-Fallback:
-
-```text
-#2563eb
-```
-
-### `show_login_button`
-
-Allowed values:
-
-```text
-1
-0
-```
-
-Fallback:
-
-```text
-1
-```
-
-## Escaping Rules
-
-Escape all public output.
-
-Required escaping:
-
-```php
-esc_html()
-esc_attr()
-esc_url()
-```
-
-Expected usage:
-
-- Use `esc_html()` for visible text.
-- Use `esc_attr()` for attributes and inline CSS variable values where applicable.
-- Use `esc_url()` for login URLs and asset URLs.
-
-## Public Template Requirements
-
-The public template should use saved settings for:
-
-- mode type label or template state
-- page title
-- message
-- theme mode class
-- primary color
-- login button visibility
-
-Expected wrapper structure:
-
-```php
-<div class="mm-public-template mm-theme-<?php echo esc_attr( $settings['theme_mode'] ); ?>">
-    <!-- Public maintenance mode content -->
-</div>
-```
-
-Expected title rendering:
-
-```php
-<h1><?php echo esc_html( $settings['page_title'] ); ?></h1>
-```
-
-Expected message rendering:
-
-```php
-<p><?php echo esc_html( $settings['message'] ); ?></p>
-```
-
-Expected login button behavior:
-
-```php
-<?php if ( '1' === $settings['show_login_button'] ) : ?>
-    <a href="<?php echo esc_url( wp_login_url() ); ?>">
-        <?php echo esc_html__( 'Log in', 'maintenance-mode' ); ?>
-    </a>
-<?php endif; ?>
-```
-
-## Admin Settings Page Requirements
-
-The admin settings page should include:
-
-- mode type select field
-- page title text input
-- message textarea
-- theme mode select field
-- primary color input
-- show login button checkbox
-- save button
-
-Recommended page title:
-
-```text
-Maintenance Mode Settings
-```
-
-Recommended menu title:
-
-```text
-Maintenance Mode
-```
-
-Required capability:
-
-```text
-manage_options
+system
 ```
 
 Expected behavior:
 
-- Only authorized admin users can access settings.
-- Settings should save through the WordPress Settings API or a secure equivalent.
-- Saving should use nonce protection if using a custom save handler.
-- Settings should persist across page reloads.
-- Invalid submitted values should not break the public page.
+* `light` forces the light theme
+* `dark` forces the dark theme
+* `system` follows the user device preference with `prefers-color-scheme`
 
-## File Structure
+The frontend should avoid flashing broken colors.
 
-Use the existing Phase 1 structure where possible.
-
-Recommended additions:
+The default should be:
 
 ```text
-assets/
-  css/
-    admin.css
-    public.css
+system
 ```
 
-Recommended existing files to update:
+## Responsive Shell
+
+The default template should render cleanly on:
+
+* Desktop
+* Tablet
+* Mobile
+* Small mobile
+
+The shell should include:
+
+* Centered page layout
+* Safe spacing
+* Readable text sizes
+* Flexible component stack
+* No horizontal overflow
+* Touch-friendly buttons
+* Safe empty states
+
+Suggested responsive breakpoints:
+
+```css
+@media (max-width: 960px) {}
+@media (max-width: 640px) {}
+@media (max-width: 420px) {}
+```
+
+## Default Copy
+
+Use safe defaults when settings are empty.
+
+Default title:
 
 ```text
-maintenance-mode.php
-includes/Admin.php
-includes/MaintenanceRouter.php
-templates/public/maintenance.php
+We'll be back soon
 ```
 
-If the current project uses nested class folders, keep the current project structure and adapt the same responsibilities to the existing paths.
-
-Do not create duplicate competing class structures.
-
-## Implementation Notes
-
-### Admin Class
-
-The admin class should own:
-
-- menu registration
-- settings registration
-- settings field rendering
-- admin asset loading
-- settings sanitization
-
-### Router or Public Controller
-
-The public router/controller should own:
-
-- deciding when maintenance mode should render
-- loading saved settings
-- passing safe settings to the public template
-- loading public assets only when needed
-
-### Template
-
-The template should own:
-
-- public HTML structure
-- escaped output
-- minimal conditional rendering
-
-Do not place settings sanitization inside the template.
-
-## CSS Requirements
-
-### Public CSS
-
-Create public styling for:
-
-- light theme
-- dark theme
-- centered layout
-- readable title and message
-- login button
-- primary color usage
-- responsive spacing
-
-Use stable class names with the `mm-` prefix.
-
-Recommended classes:
+Default message:
 
 ```text
-mm-public-template
-mm-theme-light
-mm-theme-dark
-mm-public-card
-mm-public-title
-mm-public-message
-mm-public-login
+Our site is getting a quick update. Please check back shortly.
 ```
 
-### Admin CSS
-
-Create light admin cleanup styles only if needed.
-
-Admin CSS should improve readability without fighting WordPress admin styles.
-
-Recommended classes:
+Default status label:
 
 ```text
-mm-settings-page
-mm-settings-section
-mm-settings-field
-mm-settings-help
+Maintenance in progress
 ```
 
-## Accessibility Requirements
+Default progress value:
 
-- Use readable color contrast for light and dark themes.
-- Use visible focus states for links and buttons.
-- Use real labels for form fields.
-- Do not rely only on color to communicate state.
-- Keep the login button keyboard accessible.
+```text
+65
+```
+
+Default contact label:
+
+```text
+Need help?
+```
+
+Default contact text:
+
+```text
+Contact us for urgent requests.
+```
+
+Default login label:
+
+```text
+Admin login
+```
+
+## Asset Loading Per Template
+
+Template assets should load only when maintenance mode is active and the matching template is being rendered.
+
+Do not load public template assets across the whole WordPress site.
+
+The asset loading layer should:
+
+* Register template styles
+* Register template scripts
+* Enqueue only selected template assets
+* Use versioning based on plugin version or file modification time
+* Avoid duplicate enqueues
+
+## Component Settings Schema
+
+Each component should declare its own settings schema.
+
+The schema should define:
+
+* Setting key
+* Label
+* Type
+* Default value
+* Sanitization expectation
+* Whether the field is required
+* Allowed values, when applicable
+
+Suggested field types:
+
+```text
+text
+textarea
+url
+email
+boolean
+number
+select
+repeater
+```
+
+Phase 3 does not need a complete dynamic admin UI for every component setting.
+
+However, the frontend renderer should be ready to consume saved component settings safely.
+
+## Hero Component
+
+The hero component should render:
+
+* Eyebrow text, optional
+* Title
+* Message
+* Primary action, optional
+* Secondary action, optional
+
+Required safety behavior:
+
+* If title is empty, use default title
+* If message is empty, use default message
+* If action URL is empty, do not render that action
+* Escape all text and URLs
+
+## Social Links Component
+
+The social links component should render a list of social links.
+
+Supported fields:
+
+* Label
+* URL
+
+Required safety behavior:
+
+* Skip empty URLs
+* Skip invalid URLs
+* Escape labels
+* Render nothing if no valid links exist
+
+Initial supported social labels may include:
+
+* Facebook
+* Instagram
+* LinkedIn
+* X
+* YouTube
+* GitHub
+
+Do not hardcode fake social URLs.
+
+## Contact Reveal Component
+
+The contact reveal component should render a simple contact section.
+
+Supported fields:
+
+* Contact label
+* Contact message
+* Email address, optional
+
+Required safety behavior:
+
+* If email is empty, show only the contact message
+* If email exists, render it as a safe `mailto:` link
+* Do not expose broken or invalid email links
+
+## Login Component
+
+The login component should render a WordPress login link when enabled.
+
+Supported fields:
+
+* Enabled
+* Label
+
+Required safety behavior:
+
+* If disabled, render nothing
+* If label is empty, use default login label
+* Use the WordPress login URL
+* Escape the URL and label
+
+## Status/Progress Component
+
+The status/progress component should render maintenance status.
+
+Supported fields:
+
+* Status label
+* Progress value
+* Show progress
+
+Required safety behavior:
+
+* Clamp progress between `0` and `100`
+* If progress is missing, use the default value
+* If show progress is false, show only the status label
+* Do not render invalid progress attributes
+
+## Empty State Handling
+
+The public page should not break when:
+
+* A title is missing
+* A message is missing
+* A component setting is missing
+* A component has no valid content
+* A template key is invalid
+* A component key is invalid
+* A zone has no components
+* A saved option contains an unexpected type
+
+Fallback behavior should be quiet and safe.
+
+Do not expose PHP notices, warnings, or raw errors on the frontend.
 
 ## Security Requirements
 
-- Check `manage_options` for admin settings access.
-- Sanitize all saved settings.
-- Escape all rendered output.
-- Avoid raw HTML in title and message fields.
-- Do not trust option values directly.
-- Do not render unsanitized inline styles.
+All public output must be escaped.
 
-## Backward Compatibility
+Use WordPress escaping helpers where appropriate:
 
-Phase 2 must not break Phase 1 behavior.
+* `esc_html()`
+* `esc_attr()`
+* `esc_url()`
+* `wp_kses_post()`
 
-If no settings have been saved yet, the public maintenance page should still render using defaults.
+Sanitize saved settings before use.
 
-If settings are partially missing, defaults should fill missing values.
+Do not trust values loaded from options.
 
-## Exit Criteria
+Do not render raw HTML from settings unless explicitly sanitized with an approved allowlist.
 
-Phase 2 is complete when:
+## Accessibility Requirements
 
-- The admin can select mode type.
-- The admin can edit page title.
-- The admin can edit message text.
-- The admin can select light or dark theme mode.
-- The admin can set a primary color.
-- The admin can show or hide the login button.
-- Settings persist after saving and page reload.
-- Invalid saved values fall back safely.
-- Public output is escaped.
-- Admin settings are sanitized.
-- Admin styles load only on the settings page.
-- Public styles load only on the maintenance page.
-- The Phase 1 public template is fully covered by settings.
-- The admin experience remains simple.
+The public template should include:
 
-## Manual QA Checklist
+* Semantic HTML
+* Clear heading hierarchy
+* Readable contrast
+* Keyboard-accessible links and buttons
+* Visible focus states
+* Proper progress semantics when progress is shown
 
-### Admin Settings
+The status/progress component should use accessible progress markup.
 
-- [ ] Settings page loads for admin users.
-- [ ] Settings page does not load for unauthorized users.
-- [ ] Mode type saves correctly.
-- [ ] Page title saves correctly.
-- [ ] Message saves correctly.
-- [ ] Theme mode saves correctly.
-- [ ] Primary color saves correctly.
-- [ ] Login button setting saves correctly.
-- [ ] Saved values remain after page reload.
-- [ ] Empty title falls back to default.
-- [ ] Empty message falls back to default.
-- [ ] Invalid mode type falls back to `maintenance`.
-- [ ] Invalid theme mode falls back to `light`.
-- [ ] Invalid color falls back to `#2563eb`.
+Suggested markup:
 
-### Public Page
-
-- [ ] Public page renders with saved page title.
-- [ ] Public page renders with saved message.
-- [ ] Light theme applies correctly.
-- [ ] Dark theme applies correctly.
-- [ ] Primary color applies correctly.
-- [ ] Login button appears when enabled.
-- [ ] Login button disappears when disabled.
-- [ ] Login button points to the WordPress login URL.
-- [ ] Public page still works when no settings are saved.
-- [ ] Public page still works when partial settings are saved.
-
-### Assets
-
-- [ ] Admin CSS loads only on the plugin settings page.
-- [ ] Public CSS loads only when the maintenance template renders.
-- [ ] No unnecessary assets load across the whole admin.
-- [ ] No unnecessary assets load across normal public pages.
-
-### Security
-
-- [ ] All saved settings are sanitized.
-- [ ] All public output is escaped.
-- [ ] Settings access requires `manage_options`.
-- [ ] No raw user-controlled HTML renders on the public page.
-- [ ] No PHP warnings appear with missing or invalid settings.
-
-## Suggested Codex Prompt
-
-```text
-Phase 1 is complete. The basic maintenance mode page appears.
-
-Now implement Phase 2: Admin Settings Foundation.
-
-Use the active feature spec at specs/features/active.md as the source of truth.
-
-Build the following:
-
-- mode type selection: maintenance or coming soon
-- page title setting
-- message setting
-- theme mode setting: light or dark
-- primary color setting
-- login button visibility setting
-- public asset loading foundation
-- admin asset loading foundation
-- settings UX cleanup
-
-Requirements:
-
-- Use one option array named maintenance_mode_settings.
-- Provide safe defaults for every setting.
-- Merge saved settings with defaults before use.
-- Sanitize all settings before saving.
-- Escape all public output before rendering.
-- Keep raw HTML out of title and message fields.
-- Load public CSS only when the maintenance page renders.
-- Load admin CSS only on the plugin settings page.
-- Keep the admin UI simple and WordPress-native.
-- Do not add Phase 3 features.
-- Do not create duplicate competing folder structures.
-- Preserve the current project structure unless a change is necessary.
-
-Exit criteria:
-
-- Settings cover the Phase 1 public template.
-- Settings persist safely.
-- Invalid values fall back safely.
-- The admin experience remains simple.
+```html
+<progress value="65" max="100">65%</progress>
 ```
+
+## Performance Requirements
+
+The public template should:
+
+* Load only required assets
+* Avoid heavy JavaScript
+* Work without JavaScript for core content
+* Keep CSS scoped to maintenance mode markup
+* Avoid layout shifts where possible
+
+## QA Checklist
+
+Before Phase 3 is considered complete, confirm:
+
+* The default template renders with no saved settings
+* The default template renders with saved settings
+* Invalid template keys fall back safely
+* Invalid component keys are skipped safely
+* Empty component settings do not create broken markup
+* Light mode works
+* Dark mode works
+* System mode works
+* Desktop layout works
+* Tablet layout works
+* Mobile layout works
+* Small mobile layout works
+* Public assets load only on the maintenance page
+* Admin users can still access the site normally when expected
+* Login link works when enabled
+* Login link is hidden when disabled
+* Progress value is clamped between `0` and `100`
+* Social links skip invalid URLs
+* Contact email skips invalid email values
+
+## Definition of Done
+
+Phase 3 is done when the plugin has a polished default public template powered by registries, reusable components, safe settings, responsive styling, and predictable empty-state handling.
+
+The system should be simple enough to extend in later phases without rewriting the frontend architecture.

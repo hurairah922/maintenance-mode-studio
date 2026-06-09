@@ -7,7 +7,7 @@
 
 namespace Maneuvrez\MaintenanceModeStudio\Frontend;
 
-use Maneuvrez\MaintenanceModeStudio\Security\Sanitizer;
+use Maneuvrez\MaintenanceModeStudio\Settings\SettingsRepository;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -23,12 +23,20 @@ class MaintenanceRouter {
 	private $renderer;
 
 	/**
+	 * Settings repository.
+	 *
+	 * @var SettingsRepository
+	 */
+	private $settings_repository;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param TemplateRenderer $renderer Renderer dependency.
 	 */
-	public function __construct( TemplateRenderer $renderer ) {
-		$this->renderer = $renderer;
+	public function __construct( TemplateRenderer $renderer, $settings_repository = null ) {
+		$this->renderer            = $renderer;
+		$this->settings_repository = $settings_repository instanceof SettingsRepository ? $settings_repository : new SettingsRepository();
 	}
 
 	/**
@@ -60,7 +68,6 @@ class MaintenanceRouter {
 		}
 
 		nocache_headers();
-		$this->enqueue_assets();
 		$this->renderer->render( $settings );
 		exit;
 	}
@@ -68,7 +75,7 @@ class MaintenanceRouter {
 	/**
 	 * Determine whether maintenance mode is enabled.
 	 *
-	 * @param array<string,int|string> $settings Sanitized settings.
+	 * @param array<string,mixed> $settings Sanitized settings.
 	 * @return bool
 	 */
 	private function is_enabled( array $settings ) {
@@ -127,35 +134,11 @@ class MaintenanceRouter {
 	}
 
 	/**
-	 * Register and enqueue public assets only when the maintenance template renders.
-	 *
-	 * @return void
-	 */
-	private function enqueue_assets() {
-		wp_enqueue_style(
-			'mmsm-public',
-			MMSM_PLUGIN_URL . 'public/assets/public.css',
-			array(),
-			MMSM_VERSION
-		);
-
-		wp_enqueue_script(
-			'mmsm-public',
-			MMSM_PLUGIN_URL . 'public/assets/public.js',
-			array(),
-			MMSM_VERSION,
-			false
-		);
-
-		wp_script_add_data( 'mmsm-public', 'defer', true );
-	}
-
-	/**
 	 * Load the merged settings for frontend use.
 	 *
-	 * @return array<string,int|string>
+	 * @return array<string,mixed>
 	 */
 	private function get_settings() {
-		return Sanitizer::get_settings( get_option( MMSM_SETTINGS_OPTION, array() ) );
+		return $this->settings_repository->get_settings();
 	}
 }
