@@ -1,3 +1,106 @@
 jQuery(document).ready(($) => {
 	$('.mmsm-color-picker').wpColorPicker();
+
+	const builder = $('.mmsm-social-links-builder');
+
+	if (!builder.length) {
+		return;
+	}
+
+	const list = builder.find('.mmsm-social-links-list');
+	const template = builder.find('.mmsm-social-item-template').html();
+	let mediaFrame = null;
+
+	const ensureOneRow = () => {
+		if (list.children('[data-social-item]').length) {
+			return;
+		}
+
+		addRow();
+	};
+
+	const toggleCustomFields = (row) => {
+		const platform = row.find('.mmsm-social-platform-select').val();
+		const customFields = row.find('[data-custom-fields]');
+		const isCustom = platform === 'custom';
+
+		customFields.toggleClass('is-hidden', !isCustom);
+	};
+
+	const bindRow = (row) => {
+		toggleCustomFields(row);
+
+		row.on('change', '.mmsm-social-platform-select', function onPlatformChange() {
+			toggleCustomFields($(this).closest('[data-social-item]'));
+		});
+
+		row.on('click', '.mmsm-remove-social-item', function onRemoveItem() {
+			$(this).closest('[data-social-item]').remove();
+			ensureOneRow();
+		});
+
+		row.on('click', '.mmsm-upload-social-icon', function onUploadIcon(event) {
+			event.preventDefault();
+
+			const currentRow = $(this).closest('[data-social-item]');
+
+			if (!mediaFrame) {
+				mediaFrame = wp.media({
+					button: {
+						text: 'Use icon',
+					},
+					library: {
+						type: ['image'],
+					},
+					multiple: false,
+					title: 'Choose social icon',
+				});
+			}
+
+			mediaFrame.off('select');
+			mediaFrame.on('select', () => {
+				const attachment = mediaFrame.state().get('selection').first().toJSON();
+				const allowedMimeTypes = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/webp'];
+
+				if (!allowedMimeTypes.includes(attachment.mime)) {
+					window.alert('Choose an SVG, PNG, JPG, or WEBP image.');
+					return;
+				}
+
+				currentRow.find('.mmsm-social-icon-id').val(attachment.id);
+				currentRow.find('.mmsm-social-icon-preview').attr('src', attachment.url).removeClass('is-hidden');
+				currentRow.find('.mmsm-remove-social-icon').removeClass('is-hidden');
+			});
+
+			mediaFrame.open();
+		});
+
+		row.on('click', '.mmsm-remove-social-icon', function onRemoveIcon(event) {
+			event.preventDefault();
+
+			const currentRow = $(this).closest('[data-social-item]');
+			currentRow.find('.mmsm-social-icon-id').val('0');
+			currentRow.find('.mmsm-social-icon-preview').attr('src', '').addClass('is-hidden');
+			$(this).addClass('is-hidden');
+		});
+	};
+
+	const addRow = () => {
+		const nextIndex = Number(builder.attr('data-next-index')) || 0;
+		const markup = template.replace(/__INDEX__/g, String(nextIndex));
+		const row = $(markup);
+
+		builder.attr('data-next-index', String(nextIndex + 1));
+		list.append(row);
+		bindRow(row);
+	};
+
+	list.children('[data-social-item]').each(function initRow() {
+		bindRow($(this));
+	});
+
+	builder.on('click', '.mmsm-add-social-item', function onAddItem(event) {
+		event.preventDefault();
+		addRow();
+	});
 });

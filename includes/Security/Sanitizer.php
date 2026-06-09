@@ -20,7 +20,7 @@ class Sanitizer {
 	/**
 	 * Default plugin settings.
 	 *
-	 * @return array<string,int|string>
+	 * @return array<string,mixed>
 	 */
 	public static function get_default_settings() {
 		return SettingsSchema::get_default_settings();
@@ -30,7 +30,7 @@ class Sanitizer {
 	 * Read settings and merge them with defaults.
 	 *
 	 * @param mixed $settings Raw option value.
-	 * @return array<string,int|string>
+	 * @return array<string,mixed>
 	 */
 	public static function get_settings( $settings = null ) {
 		if ( ! is_array( $settings ) ) {
@@ -44,7 +44,7 @@ class Sanitizer {
 	 * Sanitize the plugin settings payload.
 	 *
 	 * @param mixed $input Raw request data.
-	 * @return array<string,int|string>
+	 * @return array<string,mixed>
 	 */
 	public static function sanitize_settings( $input ) {
 		$defaults = self::get_default_settings();
@@ -199,6 +199,59 @@ class Sanitizer {
 	private static function sanitize_social_items( array $input, array $settings, array $defaults ) {
 		$supported_platforms = array_keys( SocialLinksComponent::get_platform_labels() );
 		$has_new_social_data = false;
+		$social_links        = array();
+
+		if (
+			array_key_exists( 'social_links', $input )
+			&& is_array( $input['social_links'] )
+			&& ( ! empty( $input['social_links'] ) || ! self::has_legacy_social_data( $input ) )
+		) {
+			$has_new_social_data = true;
+
+			foreach ( $input['social_links'] as $item ) {
+				if ( ! is_array( $item ) ) {
+					continue;
+				}
+
+				$platform       = isset( $item['platform'] ) ? sanitize_key( $item['platform'] ) : '';
+				$url            = isset( $item['url'] ) ? (string) $item['url'] : '';
+				$custom_name    = isset( $item['custom_name'] ) ? sanitize_text_field( $item['custom_name'] ) : '';
+				$custom_icon_id = isset( $item['custom_icon_id'] ) ? absint( $item['custom_icon_id'] ) : 0;
+				$open_new_tab   = ! empty( $item['open_new_tab'] ) ? 1 : 0;
+
+				if ( ! in_array( $platform, $supported_platforms, true ) ) {
+					continue;
+				}
+
+				if ( 'email' === $platform ) {
+					$url = Escaper::email_url( $url );
+				} else {
+					$url = Escaper::public_url( $url );
+				}
+
+				if ( '' === $url ) {
+					continue;
+				}
+
+				if ( 'custom' !== $platform ) {
+					$custom_name    = '';
+					$custom_icon_id = 0;
+				}
+
+				$custom_icon_id = self::sanitize_social_icon_attachment_id( $custom_icon_id );
+
+				$social_links[] = array(
+					'platform'       => $platform,
+					'url'            => $url,
+					'custom_name'    => $custom_name,
+					'custom_icon_id' => $custom_icon_id,
+					'open_new_tab'   => $open_new_tab,
+				);
+			}
+
+			$settings['social_links'] = $social_links;
+			return self::sync_legacy_social_fields( $settings, $social_links, $defaults );
+		}
 
 		for ( $index = 1; $index <= 4; $index++ ) {
 			$platform_key = 'social_item_' . $index . '_platform';
@@ -227,10 +280,21 @@ class Sanitizer {
 			} else {
 				$settings[ $url_key ] = Escaper::public_url( $url );
 			}
+
+			if ( '' !== $platform && '' !== $settings[ $url_key ] ) {
+				$social_links[] = array(
+					'platform'       => $platform,
+					'url'            => (string) $settings[ $url_key ],
+					'custom_name'    => 'custom' === $platform ? $label : '',
+					'custom_icon_id' => 0,
+					'open_new_tab'   => $settings[ $new_tab_key ],
+				);
+			}
 		}
 
 		if ( $has_new_social_data ) {
-			return $settings;
+			$settings['social_links'] = $social_links;
+			return self::sync_legacy_social_fields( $settings, $social_links, $defaults );
 		}
 
 		$legacy_map = array(
@@ -251,6 +315,138 @@ class Sanitizer {
 			$settings[ 'social_item_' . $index . '_label' ]    = '';
 			$settings[ 'social_item_' . $index . '_url' ]      = $legacy_url;
 			$settings[ 'social_item_' . $index . '_new_tab' ]  = 0;
+			$social_links[]                                      = array(
+				'platform'       => $legacy['platform'],
+				'url'            => $legacy_url,
+				'custom_name'    => '',
+				'custom_icon_id' => 0,
+				'open_new_tab'   => 0,
+			);
+		}
+
+		$settings['social_links'] = $social_links;
+
+		return self::sync_legacy_social_fields( $settings, $social_links, $defaults );
+	}
+
+	/**
+	 * Determine whether the payload still contains legacy social values.
+	 *
+	 * @param array<string,mixed> $input Settings payload.
+	 * @return bool
+	 */
+	private static function has_legacy_social_data( array $input ) {
+		$legacy_keys = array(
+			'social_x_url',
+			'social_instagram_url',
+			'social_facebook_url',
+			'social_linkedin_url',
+		);
+
+		foreach ( $legacy_keys as $legacy_key ) {
+			if ( ! empty( $input[ $legacy_key ] ) ) {
+				return true;
+			}
+		}
+
+		for ( $index = 1; $index <= 4; $index++ ) {
+			$platform_key = 'social_item_' . $index . '_platform';
+			$label_key    = 'social_item_' . $index . '_label';
+			$url_key      = 'social_item_' . $index . '_url';
+			$new_tab_key  = 'social_item_' . $index . '_new_tab';
+
+			if (
+				! empty( $input[ $platform_key ] )
+				|| ! empty( $input[ $label_key ] )
+				|| ! empty( $input[ $url_key ] )
+				|| ! empty( $input[ $new_tab_key ] )
+			) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Validate a custom social icon attachment id.
+	 *
+	 * @param int $attachment_id Attachment id.
+	 * @return int
+	 */
+	private static function sanitize_social_icon_attachment_id( $attachment_id ) {
+		if ( $attachment_id <= 0 ) {
+			return 0;
+		}
+
+		$mime_type = get_post_mime_type( $attachment_id );
+		$allowed   = array(
+			'image/svg+xml',
+			'image/png',
+			'image/jpeg',
+			'image/webp',
+		);
+
+		if ( ! in_array( $mime_type, $allowed, true ) ) {
+			return 0;
+		}
+
+		return $attachment_id;
+	}
+
+	/**
+	 * Keep legacy social fields synchronized for backward compatibility.
+	 *
+	 * @param array<string,mixed> $settings Current settings.
+	 * @param array<int,array<string,mixed>> $social_links Sanitized social links.
+	 * @param array<string,mixed> $defaults Default settings.
+	 * @return array<string,mixed>
+	 */
+	private static function sync_legacy_social_fields( array $settings, array $social_links, array $defaults ) {
+		$legacy_social_fields = array(
+			'social_x_url',
+			'social_instagram_url',
+			'social_facebook_url',
+			'social_linkedin_url',
+		);
+
+		foreach ( $legacy_social_fields as $legacy_key ) {
+			$settings[ $legacy_key ] = (string) $defaults[ $legacy_key ];
+		}
+
+		for ( $index = 1; $index <= 4; $index++ ) {
+			$settings[ 'social_item_' . $index . '_platform' ] = '';
+			$settings[ 'social_item_' . $index . '_label' ]    = '';
+			$settings[ 'social_item_' . $index . '_url' ]      = '';
+			$settings[ 'social_item_' . $index . '_new_tab' ]  = 0;
+		}
+
+		$legacy_url_map = array(
+			'x'         => 'social_x_url',
+			'instagram' => 'social_instagram_url',
+			'facebook'  => 'social_facebook_url',
+			'linkedin'  => 'social_linkedin_url',
+		);
+
+		foreach ( array_values( $social_links ) as $index => $social_link ) {
+			if ( $index >= 4 ) {
+				break;
+			}
+
+			$row_index = $index + 1;
+			$platform  = isset( $social_link['platform'] ) ? (string) $social_link['platform'] : '';
+			$url       = isset( $social_link['url'] ) ? (string) $social_link['url'] : '';
+			$name      = isset( $social_link['custom_name'] ) ? (string) $social_link['custom_name'] : '';
+			$new_tab   = ! empty( $social_link['open_new_tab'] ) ? 1 : 0;
+
+			$settings[ 'social_item_' . $row_index . '_platform' ] = $platform;
+			$settings[ 'social_item_' . $row_index . '_label' ]    = 'custom' === $platform ? $name : '';
+			$settings[ 'social_item_' . $row_index . '_url' ]      = $url;
+			$settings[ 'social_item_' . $row_index . '_new_tab' ]  = $new_tab;
+
+			if ( isset( $legacy_url_map[ $platform ] ) ) {
+				$settings[ $legacy_url_map[ $platform ] ] = $url;
+			}
 		}
 
 		return $settings;

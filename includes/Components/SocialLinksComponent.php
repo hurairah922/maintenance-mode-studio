@@ -61,42 +61,38 @@ class SocialLinksComponent implements ComponentInterface {
 	 * {@inheritDoc}
 	 */
 	public function get_settings_schema() {
-		$schema    = array();
-		$platforms = self::get_platform_labels();
-
-		for ( $index = 1; $index <= 4; $index++ ) {
-			$schema[] = array(
-				'key'      => 'social_item_' . $index . '_platform',
-				'label'    => sprintf( __( 'Social item %d platform', MMSM_TEXT_DOMAIN ), $index ),
-				'type'     => 'select',
-				'default'  => '',
+		return array(
+			array(
+				'key'      => 'social_links',
+				'label'    => __( 'Social links', MMSM_TEXT_DOMAIN ),
+				'type'     => 'repeater',
+				'default'  => array(),
 				'required' => false,
-				'allowed'  => array_keys( $platforms ),
-			);
-			$schema[] = array(
-				'key'      => 'social_item_' . $index . '_label',
-				'label'    => sprintf( __( 'Social item %d label', MMSM_TEXT_DOMAIN ), $index ),
-				'type'     => 'text',
-				'default'  => '',
-				'required' => false,
-			);
-			$schema[] = array(
-				'key'      => 'social_item_' . $index . '_url',
-				'label'    => sprintf( __( 'Social item %d URL', MMSM_TEXT_DOMAIN ), $index ),
-				'type'     => 'text',
-				'default'  => '',
-				'required' => false,
-			);
-			$schema[] = array(
-				'key'      => 'social_item_' . $index . '_new_tab',
-				'label'    => sprintf( __( 'Social item %d open in new tab', MMSM_TEXT_DOMAIN ), $index ),
-				'type'     => 'checkbox',
-				'default'  => 0,
-				'required' => false,
-			);
-		}
-
-		return $schema;
+				'allowed'  => array_keys( self::get_platform_labels() ),
+				'fields'   => array(
+					array(
+						'key' => 'platform',
+						'type' => 'select',
+					),
+					array(
+						'key' => 'url',
+						'type' => 'text',
+					),
+					array(
+						'key' => 'custom_name',
+						'type' => 'text',
+					),
+					array(
+						'key' => 'custom_icon_id',
+						'type' => 'number',
+					),
+					array(
+						'key' => 'open_new_tab',
+						'type' => 'boolean',
+					),
+				),
+			),
+		);
 	}
 
 	/**
@@ -145,12 +141,18 @@ class SocialLinksComponent implements ComponentInterface {
 	private function build_links( array $settings ) {
 		$links    = array();
 		$defaults = self::get_platform_labels();
+		$social_links = isset( $settings['social_links'] ) && is_array( $settings['social_links'] ) ? $settings['social_links'] : array();
 
-		for ( $index = 1; $index <= 4; $index++ ) {
-			$platform = isset( $settings[ 'social_item_' . $index . '_platform' ] ) ? sanitize_key( $settings[ 'social_item_' . $index . '_platform' ] ) : '';
-			$label    = isset( $settings[ 'social_item_' . $index . '_label' ] ) ? trim( (string) $settings[ 'social_item_' . $index . '_label' ] ) : '';
-			$url      = isset( $settings[ 'social_item_' . $index . '_url' ] ) ? (string) $settings[ 'social_item_' . $index . '_url' ] : '';
-			$new_tab  = ! empty( $settings[ 'social_item_' . $index . '_new_tab' ] );
+		foreach ( $social_links as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+
+			$platform       = isset( $item['platform'] ) ? sanitize_key( $item['platform'] ) : '';
+			$url            = isset( $item['url'] ) ? (string) $item['url'] : '';
+			$custom_name    = isset( $item['custom_name'] ) ? trim( (string) $item['custom_name'] ) : '';
+			$custom_icon_id = isset( $item['custom_icon_id'] ) ? absint( $item['custom_icon_id'] ) : 0;
+			$new_tab        = ! empty( $item['open_new_tab'] );
 
 			if ( '' === $platform || ! isset( $defaults[ $platform ] ) ) {
 				continue;
@@ -162,12 +164,10 @@ class SocialLinksComponent implements ComponentInterface {
 				continue;
 			}
 
-			if ( '' === $label ) {
-				$label = $defaults[ $platform ];
-			}
+			$label = 'custom' === $platform && '' !== $custom_name ? $custom_name : $defaults[ $platform ];
 
 			$links[] = array(
-				'icon'    => $this->get_platform_icon( $platform ),
+				'icon'    => $this->get_icon_markup( $platform, $label, $custom_icon_id ),
 				'label'   => $label,
 				'new_tab' => $new_tab && 'email' !== $platform,
 				'url'     => $url,
@@ -198,6 +198,61 @@ class SocialLinksComponent implements ComponentInterface {
 	 * @param string $platform Platform key.
 	 * @return string
 	 */
+	private function get_icon_markup( $platform, $label, $custom_icon_id ) {
+		if ( 'custom' === $platform ) {
+			$custom_icon = $this->get_custom_icon_markup( $custom_icon_id, $label );
+
+			if ( '' !== $custom_icon ) {
+				return $custom_icon;
+			}
+		}
+
+		return $this->get_platform_icon( $platform );
+	}
+
+	/**
+	 * Return a safe uploaded icon image tag for custom links.
+	 *
+	 * @param int    $attachment_id Attachment id.
+	 * @param string $label Accessible label.
+	 * @return string
+	 */
+	private function get_custom_icon_markup( $attachment_id, $label ) {
+		if ( $attachment_id <= 0 ) {
+			return '';
+		}
+
+		$mime_type = get_post_mime_type( $attachment_id );
+		$allowed   = array(
+			'image/svg+xml',
+			'image/png',
+			'image/jpeg',
+			'image/webp',
+		);
+
+		if ( ! in_array( $mime_type, $allowed, true ) ) {
+			return '';
+		}
+
+		$icon_url = wp_get_attachment_image_url( $attachment_id, 'thumbnail' );
+
+		if ( empty( $icon_url ) ) {
+			return '';
+		}
+
+		return sprintf(
+			'<img src="%1$s" alt="%2$s" />',
+			esc_url( $icon_url ),
+			esc_attr( $label )
+		);
+	}
+
+	/**
+	 * Return controlled inline SVG icon markup.
+	 *
+	 * @param string $platform Platform key.
+	 * @return string
+	 */
 	private function get_platform_icon( $platform ) {
 		$icons = array(
 			'facebook'  => '<svg viewBox="0 0 24 24" role="img" focusable="false"><circle cx="12" cy="12" r="10"></circle><text x="12" y="16" text-anchor="middle">f</text></svg>',
@@ -220,6 +275,10 @@ class SocialLinksComponent implements ComponentInterface {
 		return wp_kses(
 			$icons[ $platform ],
 			array(
+				'img'    => array(
+					'src' => true,
+					'alt' => true,
+				),
 				'svg'    => array(
 					'viewBox'   => true,
 					'role'      => true,

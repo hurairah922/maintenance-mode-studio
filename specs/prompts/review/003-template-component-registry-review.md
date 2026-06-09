@@ -641,3 +641,247 @@ Flag as high priority if:
 * Custom icons render raw user HTML or unsanitized SVG
 * Uploaded icons overflow, crop, stretch, or break layout
 * Social links create horizontal overflow on mobile
+
+
+## Phase 3 Stabilization Review
+
+Review the remaining Phase 3 fixes.
+
+Focus on:
+
+* Default social item behavior
+* Add more social item flow
+* Remove social item flow
+* Custom SVG icon safety
+* Tab save data-loss prevention
+* Cross-tab settings preservation
+
+## Default Social Item Review
+
+Check that the Social Links tab shows one default social item when no social links exist.
+
+Expected default item:
+
+```php id="ap2vj4"
+[
+    'platform' => 'facebook',
+    'url' => '',
+    'custom_name' => '',
+    'custom_icon_id' => 0,
+    'open_new_tab' => true,
+]
+```
+
+Review that:
+
+* The default item appears in the admin UI
+* The default item does not render publicly without a valid URL
+* The user can change the platform
+* The user can enter a URL or email value
+* The user can remove the item
+* The user can add more items
+* Removing all items saves an empty social links array
+* Empty rows do not create broken frontend links
+
+Flag as high priority if an empty default item renders publicly.
+
+## Add More and Remove Social Review
+
+Check that social links work like a proper repeater.
+
+Review that:
+
+* `Add more` creates a new row
+* Each row has a platform dropdown
+* Each row has a URL or email field
+* Each row has a remove button
+* Known platforms do not ask for manual labels
+* Custom platform shows custom name
+* Custom platform shows custom icon upload
+* Removing one row does not remove other rows
+* Saved row order is preserved
+* Invalid rows are skipped or removed safely
+
+Supported platforms:
+
+```text id="m8eig1"
+facebook
+instagram
+linkedin
+x
+youtube
+github
+tiktok
+threads
+website
+email
+custom
+```
+
+Flag as high priority if removing one item clears all social links unintentionally.
+
+## Custom SVG Icon Review
+
+Check that custom social icons support SVG safely.
+
+Review that:
+
+* Custom icons are uploaded through the WordPress media library
+* The saved setting stores an attachment ID
+* Raw SVG markup is not stored in options
+* Raw SVG markup is not rendered from settings
+* Pasted SVG or HTML is not accepted as icon input
+* The attachment URL is resolved during rendering
+* The attachment URL is escaped
+* Alt text is escaped
+* Missing or invalid icons fall back to a generic icon
+* Uploaded icons remain fully visible and aligned
+
+Allowed icon file types:
+
+```text id="cmcsao"
+svg
+png
+jpg
+jpeg
+webp
+```
+
+Important security check:
+
+Flag as high priority if SVG is rendered inline from user input without sanitization.
+
+Flag as high priority if SVG upload support bypasses WordPress upload security unsafely.
+
+## Tab Save Data Loss Review
+
+Check the bug fix for tab saving.
+
+Current bug to verify fixed:
+
+```text id="tjmznv"
+Saving one tab causes values from other tabs to become null.
+```
+
+Expected behavior:
+
+* Saving General preserves Template settings
+* Saving General preserves Design settings
+* Saving General preserves Components settings
+* Saving General preserves Social Links settings
+* Saving Design preserves General settings
+* Saving Design preserves Social Links settings
+* Saving Social Links preserves General settings
+* Saving Social Links preserves Design settings
+* Saving Components preserves all unrelated tab settings
+* Missing submitted fields are not saved as null
+* Unrelated nested settings are not overwritten
+
+Flag as high priority if saving any tab erases unrelated saved values.
+
+## Settings Merge Review
+
+Check that the save handler:
+
+* Loads existing settings before saving
+* Loads defaults before saving
+* Sanitizes only submitted fields for the active tab
+* Uses a tab ownership map or equivalent guard
+* Updates only keys owned by the active tab
+* Preserves missing unrelated keys
+* Does not overwrite unrelated tab groups
+* Does not blindly replace the full settings array
+* Allows intentional empty social links only when saving the Social Links tab
+* Allows intentional empty component arrays only when saving the Components tab
+
+Recommended tab ownership map:
+
+```php id="bt6hyz"
+[
+    'general' => [
+        'mode_type',
+        'page_title',
+        'page_message',
+        'login_enabled',
+    ],
+    'template' => [
+        'template_key',
+    ],
+    'design' => [
+        'theme_mode',
+        'colors',
+    ],
+    'components' => [
+        'components',
+    ],
+    'social-links' => [
+        'social_links',
+    ],
+    'advanced' => [
+        'asset_loading',
+    ],
+]
+```
+
+Flag as high priority if the implementation uses submitted form data as the complete saved option.
+
+## Required Regression Test
+
+Run or manually verify this flow:
+
+```text id="su4vbb"
+1. Set page title and message in General.
+2. Save General.
+3. Go to Design.
+4. Set theme mode and colors.
+5. Save Design.
+6. Confirm page title and message still exist.
+7. Go to Social Links.
+8. Add Facebook URL.
+9. Add Instagram URL.
+10. Save Social Links.
+11. Confirm General and Design values still exist.
+12. Remove Instagram.
+13. Save Social Links.
+14. Confirm only Instagram is removed.
+15. Confirm Facebook remains.
+16. Go to General.
+17. Save General again.
+18. Confirm Social Links still exist.
+```
+
+Also verify:
+
+* One empty default social item does not render publicly
+* Empty social links array renders no social section
+* Custom SVG icon renders as an escaped image URL
+* Invalid custom icon falls back safely
+* No unrelated setting becomes null after any tab save
+
+## Updated Scope Check Rows
+
+Add these rows to the scope check table:
+
+```markdown id="cbw4xn"
+| Default social item | Pass/Fail/Partial | Notes |
+| Add more social row | Pass/Fail/Partial | Notes |
+| Remove social row | Pass/Fail/Partial | Notes |
+| Safe custom SVG icon handling | Pass/Fail/Partial | Notes |
+| Tab save data preservation | Pass/Fail/Partial | Notes |
+| Active tab ownership map | Pass/Fail/Partial | Notes |
+| Safe settings merge | Pass/Fail/Partial | Notes |
+```
+
+## Additional High-Priority Issues To Flag
+
+Flag as high priority if:
+
+* Saving one tab clears unrelated settings
+* Saving one tab sets unrelated settings to null
+* Empty default social rows render publicly
+* Removing one social item removes unrelated social items
+* Removing all social items fails to save intentionally
+* Known platforms require manual labels
+* Custom SVG is stored or rendered as raw unsanitized markup
+* Invalid custom icons break frontend rendering
+* Social icons overflow, crop, stretch, or break layout

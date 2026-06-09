@@ -580,15 +580,377 @@ After implementation, verify:
 * Public template assets load only on the maintenance page
 * No PHP warnings appear on the frontend
 
+
+## Phase 3 Stabilization Fix
+
+Implement the remaining Phase 3 fixes without breaking the plugin.
+
+Focus on:
+
+* One default social item in the admin UI
+* Add more social item behavior
+* Remove social item behavior
+* Custom SVG icon support with safe handling
+* Tab save protection so other tab settings are not saved as null
+* Safe settings merge behavior to prevent data loss
+
+## 1. Default Social Item
+
+When no social links have been saved, the Social Links tab should display one default social item.
+
+Default item:
+
+```php id="xj70dg"
+[
+    'platform' => 'facebook',
+    'url' => '',
+    'custom_name' => '',
+    'custom_icon_id' => 0,
+    'open_new_tab' => true,
+]
+```
+
+Rules:
+
+* Show this default item in the admin UI only
+* Do not render it publicly until it has a valid URL
+* Do not create a broken Facebook link with an empty URL
+* Let the user change the platform
+* Let the user enter the URL or email value
+* Let the user remove the item
+* Let the user add more items
+
+If the user removes all social items and saves, save an empty social links array.
+
+After saving an empty array, the admin UI may show one blank default row again for convenience.
+
+The frontend must render no social links if there are no valid social URLs.
+
+## 2. Add More and Remove Social Items
+
+Update the social repeater UI.
+
+Required behavior:
+
+* `Add more` adds a new social row
+* Each row has a platform dropdown
+* Each row has a URL or email value field
+* Each row has a remove button
+* Known platforms do not show a custom label field
+* Known platform labels are automatic
+* Custom platform shows custom name field
+* Custom platform shows custom icon upload field
+* Remove button deletes the row before save
+* Saved rows preserve their order
+
+Supported platform values:
+
+```text id="ul1n8g"
+facebook
+instagram
+linkedin
+x
+youtube
+github
+tiktok
+threads
+website
+email
+custom
+```
+
+Known platforms ask only for:
+
+* Platform
+* URL or email value
+* Optional open in new tab setting
+
+Custom platform asks for:
+
+* Platform set to `custom`
+* Custom platform name
+* URL
+* Optional SVG/icon upload
+* Optional open in new tab setting
+
+## 3. Custom SVG Icon Upload
+
+Allow custom social platforms to use an uploaded icon.
+
+Allowed file types:
+
+```text id="s5wrkb"
+svg
+png
+jpg
+jpeg
+webp
+```
+
+Security rules:
+
+* Use the WordPress media library
+* Store only the attachment ID
+* Do not store raw SVG markup
+* Do not allow pasted SVG code
+* Do not allow pasted HTML
+* Do not render raw SVG inline from settings
+* Validate the attachment before rendering
+* Resolve the attachment URL during rendering
+* Escape the resolved URL
+* Escape alt text
+* Use the custom platform name as alt text
+* Fall back to `Link` as alt text
+* Fall back to the generic link icon if the upload is missing or invalid
+
+Important:
+
+If the plugin does not already have safe SVG upload/sanitization support, do not introduce unsafe SVG handling.
+
+Accept SVG attachment IDs only if WordPress allows the file and the implementation renders it as an escaped image URL.
+
+Do not implement custom raw SVG sanitization unless it is simple, safe, and tested.
+
+## 4. Social Link Sanitization
+
+Sanitize the social links repeater before saving.
+
+Recommended sanitizer behavior:
+
+```php id="tqhfnk"
+private function sanitize_social_links( $items ): array {
+    $clean = [];
+
+    if ( ! is_array( $items ) ) {
+        return $clean;
+    }
+
+    foreach ( $items as $item ) {
+        if ( ! is_array( $item ) ) {
+            continue;
+        }
+
+        $platform = isset( $item['platform'] ) ? sanitize_key( $item['platform'] ) : '';
+
+        if ( ! $this->is_supported_social_platform( $platform ) ) {
+            continue;
+        }
+
+        $url = isset( $item['url'] ) ? trim( (string) $item['url'] ) : '';
+
+        if ( 'email' === $platform ) {
+            $url = $this->normalize_social_email_url( $url );
+
+            if ( '' === $url ) {
+                continue;
+            }
+        } else {
+            $url = esc_url_raw( $url );
+
+            if ( '' === $url ) {
+                continue;
+            }
+        }
+
+        $custom_name = '';
+
+        if ( 'custom' === $platform ) {
+            $custom_name = isset( $item['custom_name'] ) ? sanitize_text_field( $item['custom_name'] ) : '';
+        }
+
+        $custom_icon_id = 0;
+
+        if ( 'custom' === $platform && isset( $item['custom_icon_id'] ) ) {
+            $custom_icon_id = absint( $item['custom_icon_id'] );
+        }
+
+        $clean[] = [
+            'platform' => $platform,
+            'url' => $url,
+            'custom_name' => $custom_name,
+            'custom_icon_id' => $custom_icon_id,
+            'open_new_tab' => ! empty( $item['open_new_tab'] ),
+        ];
+    }
+
+    return $clean;
+}
+```
+
+Email normalization rules:
+
+* Accept `name@example.com`
+* Convert it to `mailto:name@example.com`
+* Accept safe `mailto:name@example.com`
+* Reject malformed email values
+* Reject unsafe protocols
+
+## 5. Fix Tab Save Data Loss
+
+Fix the issue where saving one tab sets other tab settings to null.
+
+This is a high-priority bug.
+
+The save handler must not replace the entire settings array with only the active tab payload.
+
+Required save flow:
+
+```php id="mo9fct"
+$existing = $this->settings_repository->get_settings();
+$defaults = $this->settings_schema->get_defaults();
+
+$existing = wp_parse_args( $existing, $defaults );
+
+$submitted = $this->get_submitted_settings_for_active_tab();
+$sanitized = $this->sanitize_settings_for_active_tab( $submitted, $active_tab );
+
+$merged = $this->merge_settings_without_data_loss( $existing, $sanitized, $active_tab );
+
+$this->settings_repository->save_settings( $merged );
+```
+
+Rules:
+
+* Load existing settings before saving
+* Load defaults before saving
+* Sanitize only submitted fields for the active tab
+* Merge submitted fields over existing settings
+* Preserve fields that were not submitted
+* Do not set missing fields to null
+* Do not overwrite unrelated tab groups
+* Save intentional empty arrays only for fields from the active tab
+* Preserve nested settings from other tabs
+
+## 6. Active Tab Field Ownership
+
+Define which settings belong to each tab.
+
+Recommended ownership map:
+
+```php id="m9hylz"
+[
+    'general' => [
+        'mode_type',
+        'page_title',
+        'page_message',
+        'login_enabled',
+    ],
+    'template' => [
+        'template_key',
+    ],
+    'design' => [
+        'theme_mode',
+        'colors',
+    ],
+    'components' => [
+        'components',
+    ],
+    'social-links' => [
+        'social_links',
+    ],
+    'advanced' => [
+        'asset_loading',
+    ],
+]
+```
+
+When saving a tab:
+
+* Only keys owned by that tab may be updated
+* Missing keys from other tabs must be preserved
+* Unknown keys must be ignored
+* Nested arrays must be merged carefully
+* Intentional empty values are allowed only for keys owned by the active tab
+
+## 7. Merge Helper
+
+Add a merge helper that prevents data loss.
+
+Expected behavior:
+
+* Preserve all existing keys by default
+* Update only allowed keys for the active tab
+* Never write null for fields that were not submitted
+* Merge nested arrays when needed
+* Allow `social_links` to become an empty array only when saving the Social Links tab
+* Allow `components` to become an empty array only when saving the Components tab
+
+Suggested behavior:
+
+```php id="ibj18a"
+private function merge_settings_without_data_loss( array $existing, array $sanitized, string $active_tab ): array {
+    $allowed_keys = $this->get_settings_keys_for_tab( $active_tab );
+    $merged = $existing;
+
+    foreach ( $allowed_keys as $key ) {
+        if ( array_key_exists( $key, $sanitized ) ) {
+            $merged[ $key ] = $sanitized[ $key ];
+        }
+    }
+
+    return $merged;
+}
+```
+
+Use a deeper merge only where nested setting groups need it.
+
+Do not use a blind recursive merge if it preserves removed repeater rows incorrectly.
+
+For `social_links`, replacing the whole `social_links` array is correct only when the active tab is `social-links`.
+
+For `colors`, merge color keys over existing color defaults.
+
+For unrelated tabs, preserve everything.
+
+## 8. Regression Tests
+
+After implementing, test this exact flow:
+
+```text id="y000dg"
+1. Set page title and message in General.
+2. Save General.
+3. Go to Design.
+4. Set theme mode and colors.
+5. Save Design.
+6. Confirm page title and message still exist.
+7. Go to Social Links.
+8. Add Facebook URL.
+9. Add Instagram URL.
+10. Save Social Links.
+11. Confirm General and Design values still exist.
+12. Remove Instagram.
+13. Save Social Links.
+14. Confirm only Instagram is removed.
+15. Confirm Facebook remains.
+16. Go to General.
+17. Save General again.
+18. Confirm Social Links still exist.
+```
+
+Also test:
+
+* Save Social Links with one empty default row
+* Confirm no social link renders publicly
+* Save Social Links with all rows removed
+* Confirm social links save as empty array
+* Confirm admin UI still allows adding another social item
+* Add custom platform with SVG icon attachment
+* Confirm icon renders fully visible
+* Confirm invalid custom icon falls back safely
+* Confirm no unrelated settings become null
+
 ## Deliverables
 
-When complete, provide:
+When complete, report:
 
-* Summary of changed files
-* Summary of implemented behavior
-* Any assumptions made
-* Any known risks or incomplete items
-* Manual testing notes
+* Files changed
+* How social defaults now work
+* How add/remove social rows work
+* How custom SVG icons are handled safely
+* How tab save data loss was fixed
+* Any migration/backward-compatibility handling
+* Manual test results for cross-tab saving
+
 
 
 

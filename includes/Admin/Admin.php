@@ -339,18 +339,13 @@ class Admin {
 			$this->page_slug
 		);
 
-		for ( $index = 1; $index <= 4; $index++ ) {
-			add_settings_field(
-				'mmsm_social_item_' . $index,
-				sprintf( __( 'Social Item %d', MMSM_TEXT_DOMAIN ), $index ),
-				array( $this, 'render_social_item_field' ),
-				$this->page_slug,
-				'mmsm_social_links_section',
-				array(
-					'index' => $index,
-				)
-			);
-		}
+		add_settings_field(
+			'mmsm_social_links',
+			__( 'Social Items', MMSM_TEXT_DOMAIN ),
+			array( $this, 'render_social_links_field' ),
+			$this->page_slug,
+			'mmsm_social_links_section'
+		);
 
 		add_settings_section(
 			'mmsm_advanced_section',
@@ -408,11 +403,12 @@ class Admin {
 
 			<form action="<?php echo esc_url( admin_url( 'options.php' ) ); ?>" method="post">
 				<?php
-				settings_fields( $this->settings_group );
-				?>
-				<input type="hidden" name="_wp_http_referer" value="<?php echo esc_attr( $this->get_tab_url( $active_tab ) ); ?>" />
-				<?php
-				$this->render_active_tab();
+					settings_fields( $this->settings_group );
+					?>
+					<input type="hidden" name="_wp_http_referer" value="<?php echo esc_attr( $this->get_tab_url( $active_tab ) ); ?>" />
+					<input type="hidden" name="mmsm_active_tab" value="<?php echo esc_attr( $active_tab ); ?>" />
+					<?php
+					$this->render_active_tab();
 				submit_button( __( 'Save Settings', MMSM_TEXT_DOMAIN ) );
 				?>
 			</form>
@@ -439,6 +435,7 @@ class Admin {
 		);
 
 		wp_enqueue_style( 'wp-color-picker' );
+		wp_enqueue_media();
 
 		wp_enqueue_script(
 			'mmsm-admin-settings-script',
@@ -453,9 +450,22 @@ class Admin {
 	 * Sanitize saved settings via the shared helper.
 	 *
 	 * @param mixed $input Raw option payload.
-	 * @return array<string,int|string>
+	 * @return array<string,mixed>
 	 */
 	public function sanitize_settings( $input ) {
+		$input      = is_array( $input ) ? $input : array();
+		$active_tab = isset( $_POST['mmsm_active_tab'] ) ? sanitize_key( wp_unslash( $_POST['mmsm_active_tab'] ) ) : 'general';
+		$existing   = $this->settings_repository->get_settings();
+		$tab_keys   = $this->get_tab_field_keys( $active_tab );
+
+		foreach ( $tab_keys as $tab_key ) {
+			unset( $existing[ $tab_key ] );
+		}
+
+		if ( 'social_links' === $active_tab && isset( $_POST['mmsm_social_links_present'] ) && ! isset( $input['social_links'] ) ) {
+			$input['social_links'] = array();
+		}
+
 		add_settings_error(
 			MMSM_SETTINGS_OPTION,
 			'mmsm_settings_saved',
@@ -463,7 +473,7 @@ class Admin {
 			'updated'
 		);
 
-		return Sanitizer::sanitize_settings( $input );
+		return Sanitizer::sanitize_settings( array_merge( $existing, $input ) );
 	}
 
 	/**
@@ -959,69 +969,34 @@ class Admin {
 	}
 
 	/**
-	 * Render one grouped social item field.
+	 * Render the social links repeater field.
 	 *
-	 * @param array<string,mixed> $args Field arguments.
 	 * @return void
 	 */
-	public function render_social_item_field( $args ) {
-		$index     = isset( $args['index'] ) ? (int) $args['index'] : 1;
-		$settings  = $this->get_settings();
-		$platforms = SocialLinksComponent::get_platform_labels();
-		$platform  = isset( $settings[ 'social_item_' . $index . '_platform' ] ) ? (string) $settings[ 'social_item_' . $index . '_platform' ] : '';
-		$label     = isset( $settings[ 'social_item_' . $index . '_label' ] ) ? (string) $settings[ 'social_item_' . $index . '_label' ] : '';
-		$url       = isset( $settings[ 'social_item_' . $index . '_url' ] ) ? (string) $settings[ 'social_item_' . $index . '_url' ] : '';
-		$new_tab   = ! empty( $settings[ 'social_item_' . $index . '_new_tab' ] );
+	public function render_social_links_field() {
+		$settings      = $this->get_settings();
+		$social_links  = isset( $settings['social_links'] ) && is_array( $settings['social_links'] ) ? array_values( $settings['social_links'] ) : array();
+		$default_item  = $this->get_default_social_item();
+		$platforms     = SocialLinksComponent::get_platform_labels();
+
+		if ( empty( $social_links ) ) {
+			$social_links = array( $default_item );
+		}
 		?>
-		<div class="mmsm-social-item-group">
+		<input type="hidden" name="mmsm_social_links_present" value="1" />
+		<div class="mmsm-social-links-builder" data-next-index="<?php echo esc_attr( (string) count( $social_links ) ); ?>">
+			<div class="mmsm-social-links-list">
+				<?php foreach ( $social_links as $index => $social_item ) : ?>
+					<?php $this->render_social_link_row( $index, is_array( $social_item ) ? $social_item : $default_item, $platforms ); ?>
+				<?php endforeach; ?>
+			</div>
 			<p>
-				<label for="mmsm-social-item-<?php echo esc_attr( (string) $index ); ?>-platform"><?php echo esc_html__( 'Platform', MMSM_TEXT_DOMAIN ); ?></label><br />
-				<select
-					id="mmsm-social-item-<?php echo esc_attr( (string) $index ); ?>-platform"
-					name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_item_<?php echo esc_attr( (string) $index ); ?>_platform]"
-				>
-					<option value=""><?php echo esc_html__( 'Select a platform', MMSM_TEXT_DOMAIN ); ?></option>
-					<?php foreach ( $platforms as $platform_key => $platform_label ) : ?>
-						<option value="<?php echo esc_attr( $platform_key ); ?>" <?php selected( $platform, $platform_key ); ?>>
-							<?php echo esc_html( $platform_label ); ?>
-						</option>
-					<?php endforeach; ?>
-				</select>
+				<button type="button" class="button button-secondary mmsm-add-social-item"><?php echo esc_html__( 'Add more', MMSM_TEXT_DOMAIN ); ?></button>
 			</p>
-			<p>
-				<label for="mmsm-social-item-<?php echo esc_attr( (string) $index ); ?>-label"><?php echo esc_html__( 'Custom Label', MMSM_TEXT_DOMAIN ); ?></label><br />
-				<input
-					type="text"
-					class="regular-text"
-					id="mmsm-social-item-<?php echo esc_attr( (string) $index ); ?>-label"
-					name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_item_<?php echo esc_attr( (string) $index ); ?>_label]"
-					value="<?php echo esc_attr( $label ); ?>"
-				/>
-			</p>
-			<p>
-				<label for="mmsm-social-item-<?php echo esc_attr( (string) $index ); ?>-url"><?php echo esc_html__( 'URL or Email', MMSM_TEXT_DOMAIN ); ?></label><br />
-				<input
-					type="text"
-					class="regular-text code"
-					id="mmsm-social-item-<?php echo esc_attr( (string) $index ); ?>-url"
-					name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_item_<?php echo esc_attr( (string) $index ); ?>_url]"
-					value="<?php echo esc_attr( $url ); ?>"
-					placeholder="https://example.com or hello@example.com"
-				/>
-			</p>
-			<p>
-				<label for="mmsm-social-item-<?php echo esc_attr( (string) $index ); ?>-new-tab">
-					<input
-						type="checkbox"
-						id="mmsm-social-item-<?php echo esc_attr( (string) $index ); ?>-new-tab"
-						name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_item_<?php echo esc_attr( (string) $index ); ?>_new_tab]"
-						value="1"
-						<?php checked( $new_tab ); ?>
-					/>
-					<?php echo esc_html__( 'Open in a new tab when supported.', MMSM_TEXT_DOMAIN ); ?>
-				</label>
-			</p>
-			<p class="description"><?php echo esc_html__( 'Use email addresses or mailto: links for the email platform. Unsupported platforms or invalid values are skipped safely.', MMSM_TEXT_DOMAIN ); ?></p>
+			<script type="text/template" class="mmsm-social-item-template">
+				<?php $this->render_social_link_row( '__INDEX__', $default_item, $platforms ); ?>
+			</script>
+			<p class="description"><?php echo esc_html__( 'Known platforms use built-in labels. Choose Custom only when you need a custom name and media-library icon.', MMSM_TEXT_DOMAIN ); ?></p>
 		</div>
 		<?php
 	}
@@ -1101,6 +1076,112 @@ class Admin {
 		/>
 		<p class="description"><?php echo esc_html( $description ); ?></p>
 		<?php
+	}
+
+	/**
+	 * Render a single social link repeater row.
+	 *
+	 * @param int|string               $index Row index.
+	 * @param array<string,int|string> $item Social item values.
+	 * @param array<string,string>     $platforms Supported platforms.
+	 * @return void
+	 */
+	private function render_social_link_row( $index, array $item, array $platforms ) {
+		$platform        = isset( $item['platform'] ) ? (string) $item['platform'] : 'facebook';
+		$url             = isset( $item['url'] ) ? (string) $item['url'] : '';
+		$custom_name     = isset( $item['custom_name'] ) ? (string) $item['custom_name'] : '';
+		$custom_icon_id  = isset( $item['custom_icon_id'] ) ? absint( $item['custom_icon_id'] ) : 0;
+		$open_new_tab    = ! empty( $item['open_new_tab'] );
+		$custom_icon_url = $custom_icon_id > 0 ? wp_get_attachment_image_url( $custom_icon_id, 'thumbnail' ) : '';
+		$is_custom       = 'custom' === $platform;
+		?>
+		<div class="mmsm-social-item-group" data-social-item>
+			<div class="mmsm-social-item-toolbar">
+				<strong><?php echo esc_html__( 'Social item', MMSM_TEXT_DOMAIN ); ?></strong>
+				<button type="button" class="button-link-delete mmsm-remove-social-item"><?php echo esc_html__( 'Remove', MMSM_TEXT_DOMAIN ); ?></button>
+			</div>
+			<p>
+				<label><?php echo esc_html__( 'Platform', MMSM_TEXT_DOMAIN ); ?></label><br />
+				<select
+					class="mmsm-social-platform-select"
+					name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_links][<?php echo esc_attr( (string) $index ); ?>][platform]"
+				>
+					<?php foreach ( $platforms as $platform_key => $platform_label ) : ?>
+						<option value="<?php echo esc_attr( $platform_key ); ?>" <?php selected( $platform, $platform_key ); ?>>
+							<?php echo esc_html( $platform_label ); ?>
+						</option>
+					<?php endforeach; ?>
+				</select>
+			</p>
+			<p>
+				<label><?php echo esc_html__( 'URL or Email', MMSM_TEXT_DOMAIN ); ?></label><br />
+				<input
+					type="text"
+					class="regular-text code"
+					name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_links][<?php echo esc_attr( (string) $index ); ?>][url]"
+					value="<?php echo esc_attr( $url ); ?>"
+					placeholder="https://example.com or hello@example.com"
+				/>
+			</p>
+			<div class="mmsm-social-custom-fields<?php echo $is_custom ? '' : ' is-hidden'; ?>" data-custom-fields>
+				<p>
+					<label><?php echo esc_html__( 'Custom Platform Name', MMSM_TEXT_DOMAIN ); ?></label><br />
+					<input
+						type="text"
+						class="regular-text"
+						name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_links][<?php echo esc_attr( (string) $index ); ?>][custom_name]"
+						value="<?php echo esc_attr( $custom_name ); ?>"
+					/>
+				</p>
+				<div class="mmsm-social-icon-picker">
+					<input
+						type="hidden"
+						class="mmsm-social-icon-id"
+						name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_links][<?php echo esc_attr( (string) $index ); ?>][custom_icon_id]"
+						value="<?php echo esc_attr( (string) $custom_icon_id ); ?>"
+					/>
+					<div class="mmsm-social-icon-preview-wrap">
+						<img
+							class="mmsm-social-icon-preview<?php echo empty( $custom_icon_url ) ? ' is-hidden' : ''; ?>"
+							src="<?php echo esc_url( ! empty( $custom_icon_url ) ? $custom_icon_url : '' ); ?>"
+							alt=""
+						/>
+					</div>
+					<p>
+						<button type="button" class="button mmsm-upload-social-icon"><?php echo esc_html__( 'Choose icon', MMSM_TEXT_DOMAIN ); ?></button>
+						<button type="button" class="button-link-delete mmsm-remove-social-icon<?php echo 0 === $custom_icon_id ? ' is-hidden' : ''; ?>"><?php echo esc_html__( 'Remove icon', MMSM_TEXT_DOMAIN ); ?></button>
+					</p>
+					<p class="description"><?php echo esc_html__( 'Custom icons use the media library. Raster formats are recommended unless your site already allows safe SVG uploads.', MMSM_TEXT_DOMAIN ); ?></p>
+				</div>
+			</div>
+			<p>
+				<label>
+					<input
+						type="checkbox"
+						name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_links][<?php echo esc_attr( (string) $index ); ?>][open_new_tab]"
+						value="1"
+						<?php checked( $open_new_tab ); ?>
+					/>
+					<?php echo esc_html__( 'Open in a new tab when supported.', MMSM_TEXT_DOMAIN ); ?>
+				</label>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Return the default admin social row.
+	 *
+	 * @return array<string,int|string>
+	 */
+	private function get_default_social_item() {
+		return array(
+			'platform'       => 'facebook',
+			'url'            => '',
+			'custom_name'    => '',
+			'custom_icon_id' => 0,
+			'open_new_tab'   => 1,
+		);
 	}
 
 	/**
@@ -1232,5 +1313,79 @@ class Admin {
 		}
 
 		return MMSM_VERSION;
+	}
+
+	/**
+	 * Return the top-level setting keys owned by a settings tab.
+	 *
+	 * @param string $tab_key Tab key.
+	 * @return array<int,string>
+	 */
+	private function get_tab_field_keys( $tab_key ) {
+		$map = array(
+			'general'      => array(
+				'enabled',
+				'page_title',
+				'message',
+			),
+			'template'     => array(
+				'mode_type',
+				'template_key',
+			),
+			'design'       => array(
+				'theme_mode',
+				'primary_color',
+				'background_color',
+				'surface_color',
+				'heading_text_color',
+				'body_text_color',
+				'muted_text_color',
+				'link_text_color',
+				'button_text_color',
+				'border_color',
+			),
+			'components'   => array(
+				'hero_eyebrow',
+				'primary_action_label',
+				'primary_action_url',
+				'secondary_action_label',
+				'secondary_action_url',
+				'status_label',
+				'show_progress',
+				'progress_value',
+				'contact_label',
+				'contact_message',
+				'contact_email',
+			),
+			'social_links' => array(
+				'social_links',
+				'social_x_url',
+				'social_instagram_url',
+				'social_facebook_url',
+				'social_linkedin_url',
+				'social_item_1_platform',
+				'social_item_1_label',
+				'social_item_1_url',
+				'social_item_1_new_tab',
+				'social_item_2_platform',
+				'social_item_2_label',
+				'social_item_2_url',
+				'social_item_2_new_tab',
+				'social_item_3_platform',
+				'social_item_3_label',
+				'social_item_3_url',
+				'social_item_3_new_tab',
+				'social_item_4_platform',
+				'social_item_4_label',
+				'social_item_4_url',
+				'social_item_4_new_tab',
+			),
+			'advanced'     => array(
+				'show_login_button',
+				'login_label',
+			),
+		);
+
+		return isset( $map[ $tab_key ] ) ? $map[ $tab_key ] : array();
 	}
 }

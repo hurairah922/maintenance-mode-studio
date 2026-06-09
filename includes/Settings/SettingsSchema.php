@@ -158,6 +158,10 @@ class SettingsSchema {
 				'type'    => 'text',
 				'default' => 'Admin login',
 			),
+			'social_links'           => array(
+				'type'    => 'repeater',
+				'default' => array(),
+			),
 			// Legacy social URL fields are preserved for safe migration.
 			'social_x_url'           => array(
 				'type'    => 'url',

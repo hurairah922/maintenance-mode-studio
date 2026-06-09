@@ -352,6 +352,13 @@ body.mmsm-maintenance-page {
 	stroke-width: 1.8;
 }
 
+.mmsm-social-icon img {
+	display: block;
+	width: 18px;
+	height: 18px;
+	object-fit: contain;
+}
+
 .mmsm-social-icon text {
 	fill: currentColor;
 	font-family: Arial, sans-serif;
