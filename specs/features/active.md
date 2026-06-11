@@ -1,374 +1,97 @@
-## Phase 3 Fix: Plugin Check Compliance
+## WordPress.org Submission Readiness Pass
 
-Phase 3 must include a Plugin Check stabilization pass.
+This active spec tracks the final cleanup pass required before submitting Maintenance Mode Studio to WordPress.org.
 
-The current Plugin Check report shows many repeated errors and a few packaging/security warnings.
+The goal is to make the shipped plugin package production-ready without changing the current feature set.
 
-The goal is to reduce Plugin Check issues without breaking the plugin behavior already built in Phase 1, Phase 2, and Phase 3.
+## Scope
 
-## Main Plugin Check Problems
+This pass is limited to:
 
-Current reported issues include:
+* truthful public plugin metadata and readme copy
+* uninstall cleanup for the real settings option
+* JavaScript i18n for admin-facing UI strings
+* removal of SVG social icon upload support until dedicated sanitization exists
+* removal of internal phase wording from public-facing plugin files
+* release ZIP cleanup so only production plugin files are shipped
+* final validation for syntax, packaging, and known Plugin Check blockers
 
-* Translation text domain passed as a constant instead of a string literal
-* Production package includes development files
-* Plugin header `Domain Path` points to a missing folder
-* Manual `load_plugin_textdomain()` usage warning
-* Missing nonce verification for admin form handling
-* Unsanitized `$_SERVER['REQUEST_URI']`
-* `readme.txt` tested up to value is outdated
-* WordPress compatibility mismatch for `wp_is_serving_rest_request()`
+This pass must not add new product features.
 
-## Text Domain Literal Requirement
+## Product Copy Rules
 
-Plugin Check reports many errors like this:
+Public plugin copy must describe only features that exist in the submitted ZIP.
 
-```text id="b7h9ct"
-WordPress.WP.I18n.NonSingularStringLiteralDomain
-The $domain parameter must be a single text string literal. Found: MMSM_TEXT_DOMAIN
-```
+Do not claim unshipped or future features in:
 
-This must be fixed across the plugin.
+* `maintenance-mode-studio.php`
+* `readme.txt`
+* public admin UI copy
+* any file that will ship in the release ZIP
 
-Do not pass this constant into translation functions:
+The following feature claims are deferred unless they are fully implemented:
 
-```php id="xdn90s"
-MMSM_TEXT_DOMAIN
-```
+* games
+* feedback forms
+* surveys
+* advanced launch pages
+* private site mode
+* other interactive experiences not present in the runtime
 
-Use the literal text domain string directly:
+## Packaging Rules
 
-```php id="i3lkyf"
-'maintenance-mode-studio'
-```
+The release ZIP must contain only runtime plugin files and assets required for installation.
 
-Correct examples:
+The package must exclude internal and development-only files such as:
 
-```php id="hlclwl"
-__( 'Settings saved.', 'maintenance-mode-studio' );
+* `README.md`
+* `specs/`
+* `docs/`
+* `tests/`
+* `.git/`
+* `.github/`
+* `node_modules/`
+* `vendor/`
+* build scripts
+* reports, logs, and generated archives
+* unused public assets
 
-esc_html__( 'Maintenance in progress', 'maintenance-mode-studio' );
+The final ZIP must be created from a reliable exclusion list and verified after creation.
 
-esc_attr__( 'Admin login', 'maintenance-mode-studio' );
-```
+## Security And Review Expectations
 
-Incorrect examples:
+This pass must preserve the existing escaping, sanitization, capability checks, and nonce verification work.
 
-```php id="dm6x3n"
-__( 'Settings saved.', MMSM_TEXT_DOMAIN );
+SVG social icon upload and render support is deferred until a future release with proper SVG sanitization. The current release must allow only raster image uploads for custom social icons.
 
-esc_html__( 'Maintenance in progress', MMSM_TEXT_DOMAIN );
+Admin JavaScript strings must be localized using WordPress JS i18n.
 
-esc_attr__( 'Admin login', MMSM_TEXT_DOMAIN );
-```
+## Files To Inspect
 
-## Files To Fix For Text Domain Errors
+Primary files for this pass:
 
-Inspect and fix translation function calls in these files:
+* `maintenance-mode-studio.php`
+* `readme.txt`
+* `README.md`
+* `uninstall.php`
+* `includes/Admin/Admin.php`
+* `admin/assets/admin.js`
+* `includes/Components/SocialLinksComponent.php`
+* `includes/Security/Sanitizer.php`
+* `build-zip.sh`
+* `.distignore`
 
-```text id="xyh0vw"
-includes/Components/StatusProgressComponent.php
-includes/Components/HeroComponent.php
-includes/Components/ContactRevealComponent.php
-includes/Components/LoginComponent.php
-includes/Components/SocialLinksComponent.php
-includes/Frontend/TemplateRenderer.php
-includes/Frontend/TemplateRegistry.php
-includes/Admin/Admin.php
-templates/public/default.php
-public/templates/default.php
-```
+## Exit Criteria
 
-Replace the text domain constant only in translation function calls.
+This pass is complete when all of the following are true:
 
-Do not remove the constant if other internal code still uses it safely.
-
-The Plugin Check requirement is specifically about the `$domain` argument in internationalization functions.
-
-Common functions to check:
-
-```text id="f4yqot"
-__()
-_e()
-_x()
-_ex()
-esc_html__()
-esc_html_e()
-esc_html_x()
-esc_attr__()
-esc_attr_e()
-esc_attr_x()
-_n()
-_nx()
-_n_noop()
-_nx_noop()
-```
-
-## Development Files In Production Package
-
-Plugin Check reports production package issues for:
-
-```text id="zsdgm5"
-phpcs.xml.dist
-.distignore
-.gitignore
-.github
-```
-
-These files should not be included in the final production plugin ZIP.
-
-Required behavior:
-
-* Keep development files in the Git repository if useful
-* Exclude development files from the release ZIP
-* Do not ship GitHub workflow files in the WordPress.org plugin package
-* Do not ship PHPCS config files in the production plugin package unless specifically allowed
-
-Recommended `.distignore` entries:
-
-```text id="hw9bvg"
-.git
-.github
-.gitignore
-.distignore
-phpcs.xml
-phpcs.xml.dist
-composer.json
-composer.lock
-package.json
-package-lock.json
-node_modules
-vendor/bin
-tests
-specs
-```
-
-The exact list can be adjusted, but production ZIP should include only runtime plugin files and required assets.
-
-## Domain Path Warning
-
-Plugin Check reports:
-
-```text id="eybllg"
-The "Domain Path" header in the plugin file must point to an existing folder. Found: "languages"
-```
-
-Fix this in one of two ways.
-
-### Option A: Create The Folder
-
-Create this folder:
-
-```text id="qg6shc"
-languages/
-```
-
-Keep the plugin header:
-
-```php id="sogzj6"
-Domain Path: /languages
-```
-
-### Option B: Remove The Header
-
-If no translation files are shipped yet, remove the `Domain Path` header.
-
-Preferred Phase 3 fix:
-
-* Create the `languages/` folder
-* Keep `Domain Path: /languages`
-* Add an empty placeholder file only if needed by the repository workflow
-
-Do not add fake translation files.
-
-## Discouraged `load_plugin_textdomain()` Warning
-
-Plugin Check reports:
-
-```text id="c39hc4"
-load_plugin_textdomain() has been discouraged since WordPress version 4.6.
-```
-
-Expected fix:
-
-* Remove manual `load_plugin_textdomain()` unless there is a strong reason to keep it
-* Let WordPress.org handle translations automatically for the plugin slug
-* Make sure the plugin text domain matches the plugin slug
-
-Text domain should be:
-
-```text id="f1yot9"
-maintenance-mode-studio
-```
-
-## Nonce Verification Fixes
-
-Plugin Check reports nonce warnings in admin form handling.
-
-Files to inspect:
-
-```text id="xf386y"
-includes/Admin/Admin.php
-includes/Frontend/MaintenanceRouter.php
-```
-
-Admin save handlers must verify nonce before processing submitted settings.
-
-Expected admin save flow:
-
-```text id="js6a0l"
-1. Confirm the request is a settings save request.
-2. Verify the nonce.
-3. Verify user capability.
-4. Sanitize submitted data.
-5. Merge submitted settings with existing settings.
-6. Save settings.
-7. Redirect back with one success notice.
-```
-
-Admin requests should use:
-
-```php id="gcyqsm"
-check_admin_referer()
-```
-
-or:
-
-```php id="sr2pa0"
-wp_verify_nonce()
-```
-
-Use the project’s current form structure and avoid breaking saves.
-
-Do not add nonce checks to simple page loads that do not process submitted data.
-
-## Request URI Sanitization
-
-Plugin Check reports unsanitized use of:
-
-```php id="h0hg9a"
-$_SERVER['REQUEST_URI']
-```
-
-Fix by unslashing and sanitizing before use.
-
-Expected pattern:
-
-```php id="lxi8y5"
-$request_uri = isset( $_SERVER['REQUEST_URI'] )
-    ? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
-    : '';
-```
-
-If the value is used as a URL or path, use the safest sanitizer for that use case.
-
-Do not echo raw server values.
-
-Do not trust `$_SERVER` values.
-
-## WordPress Version Compatibility
-
-Plugin Check reports:
-
-```text id="qlxw1e"
-Function "wp_is_serving_rest_request()" requires WordPress 6.5.0, but your plugin minimum supported version is WordPress 6.4.0.
-```
-
-Fix this in one of two ways.
-
-### Option A: Raise Minimum WordPress Version
-
-If the plugin intends to require WordPress 6.5 or higher, update plugin headers and readme requirements to match.
-
-### Option B: Add Compatibility Fallback
-
-If the plugin should support WordPress 6.4, avoid calling `wp_is_serving_rest_request()` directly without a function check.
-
-Example:
-
-```php id="bejo7c"
-$is_rest_request = function_exists( 'wp_is_serving_rest_request' )
-    ? wp_is_serving_rest_request()
-    : defined( 'REST_REQUEST' ) && REST_REQUEST;
-```
-
-Preferred Phase 3 fix:
-
-* Use a compatibility fallback
-* Keep the minimum supported WordPress version stable unless intentionally changed
-
-## Readme Tested Up To
-
-Plugin Check reports:
-
-```text id="zw2rkm"
-Tested up to: 6.5 < 7.0
-```
-
-Update `readme.txt` so the tested version matches the WordPress version being checked.
-
-For the current check environment, use:
-
-```text id="w92nhq"
-Tested up to: 7.0
-```
-
-Also confirm the main plugin header and readme are consistent.
-
-## Duplicate Template Path Check
-
-The report includes both:
-
-```text id="l3ps9s"
-templates/public/default.php
-public/templates/default.php
-```
-
-Confirm whether both files are needed.
-
-Expected behavior:
-
-* Keep one canonical public template path
-* Remove duplicate legacy template files if they are unused
-* If backward compatibility needs both paths, make sure both are compliant
-* Avoid maintaining two different default templates that drift apart
-
-Preferred Phase 3 target:
-
-```text id="vdlc1x"
-templates/public/default.php
-```
-
-## Data Safety Requirements
-
-This Plugin Check pass must not break:
-
-* Maintenance mode routing
-* Admin settings tabs
-* Color picker saving
-* Color frontend application
-* Social links repeater
-* Custom social icons
-* Cross-tab settings preservation
-* Single save notice behavior
-* Public template rendering
-
-Do not rewrite working architecture unless needed.
-
-Apply focused fixes.
-
-## Updated Phase 3 Exit Criteria
-
-Phase 3 is complete when:
-
-* Translation functions use the literal text domain string
-* Plugin Check text domain literal errors are cleared
-* Development files are excluded from the production plugin ZIP
-* `Domain Path` points to an existing folder or is removed
-* Manual `load_plugin_textdomain()` warning is resolved or intentionally documented
-* Admin form processing uses nonce verification
-* Server input is sanitized before use
-* WordPress compatibility issue is resolved
-* `readme.txt` tested up to value is current for the target release
-* Duplicate template paths are resolved or made compliant
-* No existing Phase 3 behavior regresses
+* `uninstall.php` removes the real `maintenance_mode_settings` option and keeps intended legacy cleanup.
+* The main plugin header description matches shipped features only.
+* `readme.txt` matches shipped features only and uses five or fewer tags.
+* Admin JavaScript strings are localized through WordPress JS i18n with `wp-i18n` and `wp_set_script_translations()`.
+* SVG is removed from allowed social icon MIME types, validation, and UI copy.
+* Internal phase wording is removed from public-facing plugin files.
+* The release ZIP excludes `README.md`, specs, prompts, tests, `.git`, node/vendor folders, logs, generated reports, unused public assets, and other development-only files.
+* Plugin Check shows no blocking i18n, security, escaping, sanitization, or packaging issues in the updated scope.
+* PHP syntax checks pass on all PHP files.
+* The final ZIP is structurally ready for WordPress admin upload and should be tested in a WordPress install before submission.

@@ -158,6 +158,10 @@ class SettingsSchema {
 				'type'    => 'checkbox',
 				'default' => 1,
 			),
+			'delete_data_on_uninstall' => array(
+				'type'    => 'checkbox',
+				'default' => 0,
+			),
 			'login_label'            => array(
 				'type'    => 'text',
 				'default' => 'Admin login',

@@ -51,10 +51,11 @@ class Sanitizer {
 		$input    = is_array( $input ) ? $input : array();
 		$settings = $defaults;
 
-		$settings['enabled']           = ! empty( $input['enabled'] ) ? 1 : 0;
+		$settings['enabled']             = ! empty( $input['enabled'] ) ? 1 : 0;
 		$settings['show_footer_section'] = ! empty( $input['show_footer_section'] ) ? 1 : 0;
-		$settings['show_progress']     = ! empty( $input['show_progress'] ) ? 1 : 0;
-		$settings['show_login_button'] = ! empty( $input['show_login_button'] ) ? 1 : 0;
+		$settings['show_progress']       = ! empty( $input['show_progress'] ) ? 1 : 0;
+		$settings['show_login_button']   = ! empty( $input['show_login_button'] ) ? 1 : 0;
+		$settings['delete_data_on_uninstall'] = ! empty( $input['delete_data_on_uninstall'] ) ? 1 : 0;
 
 		$settings['mode_type']    = self::sanitize_choice( $input, 'mode_type', array( 'maintenance', 'coming_soon' ), $defaults );
 		$settings['template_key'] = self::sanitize_choice( $input, 'template_key', array( 'default' ), $defaults );
@@ -429,7 +430,6 @@ class Sanitizer {
 
 		$mime_type = get_post_mime_type( $attachment_id );
 		$allowed   = array(
-			'image/svg+xml',
 			'image/png',
 			'image/jpeg',
 			'image/webp',

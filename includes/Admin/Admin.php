@@ -371,6 +371,14 @@ class Admin {
 		);
 
 		add_settings_field(
+			'mmsm_delete_data_on_uninstall',
+			__( 'Data Removal on Uninstall', 'maintenance-mode-studio' ),
+			array( $this, 'render_delete_data_on_uninstall_field' ),
+			$this->page_slug,
+			'mmsm_advanced_section'
+		);
+
+		add_settings_field(
 			'mmsm_login_label',
 			__( 'Login Label', 'maintenance-mode-studio' ),
 			array( $this, 'render_login_label_field' ),
@@ -449,9 +457,14 @@ class Admin {
 		wp_enqueue_script(
 			'mmsm-admin-settings-script',
 			MMSM_PLUGIN_URL . 'admin/assets/admin.js',
-			array( 'jquery', 'wp-color-picker' ),
+			array( 'jquery', 'wp-color-picker', 'wp-i18n' ),
 			$this->get_asset_version( 'admin/assets/admin.js' ),
 			true
+		);
+
+		wp_set_script_translations(
+			'mmsm-admin-settings-script',
+			'maintenance-mode-studio'
 		);
 	}
 
@@ -554,7 +567,7 @@ class Admin {
 	 * @return void
 	 */
 	public function render_advanced_section() {
-		echo '<p>' . esc_html__( 'Control optional access and login affordances without affecting administrator bypass behavior.', 'maintenance-mode-studio' ) . '</p>';
+		echo '<p>' . esc_html__( 'Control optional access, login affordances, and uninstall cleanup without affecting administrator bypass behavior.', 'maintenance-mode-studio' ) . '</p>';
 	}
 
 	/**
@@ -694,7 +707,7 @@ class Admin {
 				<?php echo esc_html__( 'Default', 'maintenance-mode-studio' ); ?>
 			</option>
 		</select>
-		<p class="description"><?php echo esc_html__( 'Phase 3 ships with one polished default template.', 'maintenance-mode-studio' ); ?></p>
+		<p class="description"><?php echo esc_html__( 'This release includes one polished default template.', 'maintenance-mode-studio' ); ?></p>
 		<?php
 	}
 
@@ -1018,6 +1031,28 @@ class Admin {
 	}
 
 	/**
+	 * Render the uninstall cleanup preference field.
+	 *
+	 * @return void
+	 */
+	public function render_delete_data_on_uninstall_field() {
+		$settings = $this->get_settings();
+		?>
+		<label for="mmsm-delete-data-on-uninstall">
+			<input
+				type="checkbox"
+				id="mmsm-delete-data-on-uninstall"
+				name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[delete_data_on_uninstall]"
+				value="1"
+				<?php checked( 1, (int) $settings['delete_data_on_uninstall'] ); ?>
+			/>
+			<?php echo esc_html__( 'Delete plugin settings when the plugin is removed.', 'maintenance-mode-studio' ); ?>
+		</label>
+		<p class="description"><?php echo esc_html__( 'Leave this unchecked to keep your settings for a future reinstall. Check it only if you want uninstall to permanently remove plugin data.', 'maintenance-mode-studio' ); ?></p>
+		<?php
+	}
+
+	/**
 	 * Render the social links repeater field.
 	 *
 	 * @return void
@@ -1045,7 +1080,7 @@ class Admin {
 			<script type="text/template" class="mmsm-social-item-template">
 				<?php $this->render_social_link_row( '__INDEX__', $default_item, $platforms ); ?>
 			</script>
-			<p class="description"><?php echo esc_html__( 'Known platforms use built-in labels. Choose Custom only when you need a custom name and media-library icon.', 'maintenance-mode-studio' ); ?></p>
+			<p class="description"><?php echo esc_html__( 'Known platforms use built-in labels. Choose Custom only when you need a custom name and uploaded image icon.', 'maintenance-mode-studio' ); ?></p>
 		</div>
 		<?php
 	}
@@ -1251,7 +1286,7 @@ class Admin {
 						<button type="button" class="button mmsm-upload-social-icon"><?php echo esc_html__( 'Choose icon', 'maintenance-mode-studio' ); ?></button>
 						<button type="button" class="button-link-delete mmsm-remove-social-icon<?php echo 0 === $custom_icon_id ? ' is-hidden' : ''; ?>"><?php echo esc_html__( 'Remove icon', 'maintenance-mode-studio' ); ?></button>
 					</p>
-					<p class="description"><?php echo esc_html__( 'Uploaded icons use the media library. SVG, PNG, JPG, and WEBP are accepted when your site allows them.', 'maintenance-mode-studio' ); ?></p>
+					<p class="description"><?php echo esc_html__( 'Uploaded icons use the media library. PNG, JPG, and WEBP are accepted.', 'maintenance-mode-studio' ); ?></p>
 				</div>
 			</div>
 			<p>
@@ -1486,6 +1521,7 @@ class Admin {
 			'advanced'     => array(
 				'show_login_button',
 				'show_footer_section',
+				'delete_data_on_uninstall',
 				'login_label',
 			),
 		);

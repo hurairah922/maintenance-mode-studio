@@ -1,4 +1,5 @@
 jQuery(document).ready(($) => {
+	const { __ } = wp.i18n;
 	$('.mmsm-color-picker').wpColorPicker();
 
 	const builder = $('.mmsm-social-links-builder');
@@ -55,23 +56,23 @@ jQuery(document).ready(($) => {
 			if (!mediaFrame) {
 				mediaFrame = wp.media({
 					button: {
-						text: 'Use icon',
+						text: __('Use icon', 'maintenance-mode-studio'),
 					},
 					library: {
 						type: ['image'],
 					},
 					multiple: false,
-					title: 'Choose social icon',
+					title: __('Choose social icon', 'maintenance-mode-studio'),
 				});
 			}
 
 			mediaFrame.off('select');
 			mediaFrame.on('select', () => {
 				const attachment = mediaFrame.state().get('selection').first().toJSON();
-				const allowedMimeTypes = ['image/svg+xml', 'image/png', 'image/jpeg', 'image/webp'];
+				const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp'];
 
 				if (!allowedMimeTypes.includes(attachment.mime)) {
-					window.alert('Choose an SVG, PNG, JPG, or WEBP image.');
+					window.alert(__('Choose a PNG, JPG, or WEBP image.', 'maintenance-mode-studio'));
 					return;
 				}
 

@@ -18,7 +18,7 @@ use Maneuvrez\MaintenanceModeStudio\Settings\SettingsRepository;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Orchestrates the Phase 1 admin and frontend services.
+ * Orchestrates the plugin admin and frontend services.
  */
 class Plugin {
 	/**
@@ -61,7 +61,7 @@ class Plugin {
 	}
 
 	/**
-	 * Ensure the Phase 2 settings option exists and migrate legacy data once.
+	 * Ensure the current settings option exists and migrate legacy data once.
 	 *
 	 * @return void
 	 */

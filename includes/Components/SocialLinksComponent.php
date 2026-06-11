@@ -45,7 +45,7 @@ class SocialLinksComponent implements ComponentInterface {
 		return array(
 			'platform' => __( 'Platform default', 'maintenance-mode-studio' ),
 			'library'  => __( 'WordPress icon library', 'maintenance-mode-studio' ),
-			'upload'   => __( 'Uploaded SVG/image', 'maintenance-mode-studio' ),
+			'upload'   => __( 'Uploaded image', 'maintenance-mode-studio' ),
 		);
 	}
 
@@ -262,7 +262,7 @@ class SocialLinksComponent implements ComponentInterface {
 	}
 
 	/**
-	 * Return controlled inline SVG icon markup.
+	 * Return icon markup for the selected source.
 	 *
 	 * @param string $platform Platform key.
 	 * @return string
@@ -305,7 +305,6 @@ class SocialLinksComponent implements ComponentInterface {
 
 		$mime_type = get_post_mime_type( $attachment_id );
 		$allowed   = array(
-			'image/svg+xml',
 			'image/png',
 			'image/jpeg',
 			'image/webp',
@@ -363,7 +362,7 @@ class SocialLinksComponent implements ComponentInterface {
 	}
 
 	/**
-	 * Return controlled inline SVG icon markup.
+	 * Return built-in platform icon markup.
 	 *
 	 * @param string $platform Platform key.
 	 * @return string

@@ -1,26 +1,20 @@
 <?php
 /**
  * Plugin Name: Maintenance Mode Studio
- * Plugin URI: https://abuhurarrah.com/plugins/maintenance-mode-studio
- * Description: Create interactive maintenance, coming soon, launch, and private site pages with games, forms, contact options, social links, login access, and modern responsive animations.
- * Version: 0.1.2
+ * Description: Create a responsive maintenance or coming soon page with custom copy, colors, contact details, social links, login access, and administrator bypass.
+ * Version: 1.0.0
  * Author: Abu Hurarrah
- * Author URI: https://profiles.wordpress.org/hurairah922/
+ * Author URI: https://abuhurarrah.com
  * Text Domain: maintenance-mode-studio
  * Domain Path: /languages
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
-/**
- * Created by Abu Hurarrah.
- * Creator URI: https://profiles.wordpress.org/hurairah922/
- */
-
 defined( 'ABSPATH' ) || exit;
 
 if ( ! defined( 'MMSM_VERSION' ) ) {
-	define( 'MMSM_VERSION', '0.1.2' );
+	define( 'MMSM_VERSION', '1.0.0' );
 }
 
 if ( ! defined( 'MMSM_PLUGIN_FILE' ) ) {
@@ -85,10 +79,7 @@ register_deactivation_hook(
 );
 
 /**
- * Bootstrap the Phase 1 plugin shell.
- *
- * Future Pro extension points should compose around the Plugin class rather than
- * branching from this entry file.
+ * Bootstrap the plugin runtime.
  */
 function mmsm_run_plugin() {
 	$plugin = new Maneuvrez\MaintenanceModeStudio\Plugin();
