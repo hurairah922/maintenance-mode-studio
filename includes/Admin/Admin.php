@@ -1092,7 +1092,7 @@ class Admin {
 		$custom_name     = isset( $item['custom_name'] ) ? (string) $item['custom_name'] : '';
 		$custom_icon_id  = isset( $item['custom_icon_id'] ) ? absint( $item['custom_icon_id'] ) : 0;
 		$open_new_tab    = ! empty( $item['open_new_tab'] );
-		$custom_icon_url = $custom_icon_id > 0 ? wp_get_attachment_image_url( $custom_icon_id, 'thumbnail' ) : '';
+		$custom_icon_url = $custom_icon_id > 0 ? wp_get_attachment_url( $custom_icon_id ) : '';
 		$is_custom       = 'custom' === $platform;
 		?>
 		<div class="mmsm-social-item-group" data-social-item>

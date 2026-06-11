@@ -234,7 +234,7 @@ class SocialLinksComponent implements ComponentInterface {
 			return '';
 		}
 
-		$icon_url = wp_get_attachment_image_url( $attachment_id, 'thumbnail' );
+		$icon_url = wp_get_attachment_url( $attachment_id );
 
 		if ( empty( $icon_url ) ) {
 			return '';
