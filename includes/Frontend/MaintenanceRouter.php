@@ -7,6 +7,8 @@
 
 namespace Maneuvrez\MaintenanceModeStudio\Frontend;
 
+use Maneuvrez\MaintenanceModeStudio\Settings\SettingsRepository;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -21,12 +23,20 @@ class MaintenanceRouter {
 	private $renderer;
 
 	/**
+	 * Settings repository.
+	 *
+	 * @var SettingsRepository
+	 */
+	private $settings_repository;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param TemplateRenderer $renderer Renderer dependency.
 	 */
-	public function __construct( TemplateRenderer $renderer ) {
-		$this->renderer = $renderer;
+	public function __construct( TemplateRenderer $renderer, $settings_repository = null ) {
+		$this->renderer            = $renderer;
+		$this->settings_repository = $settings_repository instanceof SettingsRepository ? $settings_repository : new SettingsRepository();
 	}
 
 	/**
@@ -44,26 +54,31 @@ class MaintenanceRouter {
 	 * @return void
 	 */
 	public function maybe_render_maintenance_page() {
-		if ( ! $this->is_enabled() || $this->should_bypass() ) {
+		$settings = $this->get_settings();
+
+		if ( ! $this->is_enabled( $settings ) || $this->should_bypass() ) {
 			return;
 		}
 
-		status_header( 503 );
-		nocache_headers();
-		header( 'Retry-After: 600' );
+		if ( 'maintenance' === $settings['mode_type'] ) {
+			status_header( 503 );
+			header( 'Retry-After: 600' );
+		} else {
+			status_header( 200 );
+		}
 
-		$this->renderer->render();
+		nocache_headers();
+		$this->renderer->render( $settings );
 		exit;
 	}
 
 	/**
 	 * Determine whether maintenance mode is enabled.
 	 *
+	 * @param array<string,mixed> $settings Sanitized settings.
 	 * @return bool
 	 */
-	private function is_enabled() {
-		$settings = get_option( MMSM_SETTINGS_OPTION, array() );
-
+	private function is_enabled( array $settings ) {
 		return ! empty( $settings['enabled'] );
 	}
 
@@ -100,21 +115,28 @@ class MaintenanceRouter {
 	 * @return bool
 	 */
 	private function is_rest_request() {
-		if ( function_exists( 'wp_is_serving_rest_request' ) && wp_is_serving_rest_request() ) {
-			return true;
-		}
-
 		if ( defined( 'REST_REQUEST' ) && REST_REQUEST ) {
 			return true;
 		}
 
-		if ( isset( $_GET['rest_route'] ) ) {
+		if ( isset( $_GET['rest_route'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only REST route detection does not process or persist user input.
 			return true;
 		}
 
-		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only request path inspection for routing, sanitized before use.
+			? sanitize_text_field( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+			: '';
 		$rest_prefix = trailingslashit( rest_get_url_prefix() );
 
 		return '' !== $request_uri && false !== strpos( $request_uri, '/' . $rest_prefix );
+	}
+
+	/**
+	 * Load the merged settings for frontend use.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function get_settings() {
+		return $this->settings_repository->get_settings();
 	}
 }
