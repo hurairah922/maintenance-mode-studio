@@ -21,16 +21,24 @@ jQuery(document).ready(($) => {
 
 	const toggleCustomFields = (row) => {
 		const platform = row.find('.mmsm-social-platform-select').val();
+		const iconSource = row.find('.mmsm-social-icon-source-select').val();
 		const customFields = row.find('[data-custom-fields]');
-		const isCustom = platform === 'custom';
+		const iconLibraryFields = row.find('[data-icon-library-fields]');
+		const iconUploadFields = row.find('[data-icon-upload-fields]');
 
-		customFields.toggleClass('is-hidden', !isCustom);
+		customFields.toggleClass('is-hidden', platform !== 'custom');
+		iconLibraryFields.toggleClass('is-hidden', iconSource !== 'library');
+		iconUploadFields.toggleClass('is-hidden', iconSource !== 'upload');
 	};
 
 	const bindRow = (row) => {
 		toggleCustomFields(row);
 
 		row.on('change', '.mmsm-social-platform-select', function onPlatformChange() {
+			toggleCustomFields($(this).closest('[data-social-item]'));
+		});
+
+		row.on('change', '.mmsm-social-icon-source-select', function onIconSourceChange() {
 			toggleCustomFields($(this).closest('[data-social-item]'));
 		});
 

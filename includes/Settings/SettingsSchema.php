@@ -136,6 +136,10 @@ class SettingsSchema {
 				'type'    => 'email',
 				'default' => '',
 			),
+			'show_footer_section'    => array(
+				'type'    => 'checkbox',
+				'default' => 1,
+			),
 			'status_label'           => array(
 				'type'    => 'text',
 				'default' => 'Maintenance in progress',

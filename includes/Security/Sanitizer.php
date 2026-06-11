@@ -52,6 +52,7 @@ class Sanitizer {
 		$settings = $defaults;
 
 		$settings['enabled']           = ! empty( $input['enabled'] ) ? 1 : 0;
+		$settings['show_footer_section'] = ! empty( $input['show_footer_section'] ) ? 1 : 0;
 		$settings['show_progress']     = ! empty( $input['show_progress'] ) ? 1 : 0;
 		$settings['show_login_button'] = ! empty( $input['show_login_button'] ) ? 1 : 0;
 
@@ -198,6 +199,8 @@ class Sanitizer {
 	 */
 	private static function sanitize_social_items( array $input, array $settings, array $defaults ) {
 		$supported_platforms = array_keys( SocialLinksComponent::get_platform_labels() );
+		$icon_sources        = array_keys( SocialLinksComponent::get_icon_source_labels() );
+		$icon_libraries      = SocialLinksComponent::get_icon_libraries();
 		$has_new_social_data = false;
 		$social_links        = array();
 
@@ -217,6 +220,9 @@ class Sanitizer {
 				$url            = isset( $item['url'] ) ? (string) $item['url'] : '';
 				$custom_name    = isset( $item['custom_name'] ) ? sanitize_text_field( $item['custom_name'] ) : '';
 				$custom_icon_id = isset( $item['custom_icon_id'] ) ? absint( $item['custom_icon_id'] ) : 0;
+				$icon_source    = isset( $item['icon_source'] ) ? sanitize_key( $item['icon_source'] ) : '';
+				$icon_library   = isset( $item['icon_library'] ) ? sanitize_key( $item['icon_library'] ) : '';
+				$icon_value     = isset( $item['icon_value'] ) ? sanitize_key( $item['icon_value'] ) : '';
 				$open_new_tab   = ! empty( $item['open_new_tab'] ) ? 1 : 0;
 
 				if ( ! in_array( $platform, $supported_platforms, true ) ) {
@@ -234,17 +240,53 @@ class Sanitizer {
 				}
 
 				if ( 'custom' !== $platform ) {
-					$custom_name    = '';
-					$custom_icon_id = 0;
+					$custom_name = '';
 				}
 
-				$custom_icon_id = self::sanitize_social_icon_attachment_id( $custom_icon_id );
+				if ( '' === $icon_source ) {
+					$icon_source = $custom_icon_id > 0 ? 'upload' : 'platform';
+				}
+
+				if ( ! in_array( $icon_source, $icon_sources, true ) ) {
+					$icon_source = 'platform';
+				}
+
+				if ( 'upload' === $icon_source ) {
+					$custom_icon_id = self::sanitize_social_icon_attachment_id( $custom_icon_id );
+					$icon_library   = '';
+					$icon_value     = '';
+				} elseif ( 'library' === $icon_source ) {
+					$custom_icon_id = 0;
+
+					if ( ! isset( $icon_libraries[ $icon_library ] ) ) {
+						$icon_source  = 'platform';
+						$icon_library = '';
+						$icon_value   = '';
+					} else {
+						$icon_choices = isset( $icon_libraries[ $icon_library ]['icons'] ) && is_array( $icon_libraries[ $icon_library ]['icons'] )
+							? array_keys( $icon_libraries[ $icon_library ]['icons'] )
+							: array();
+
+						if ( ! in_array( $icon_value, $icon_choices, true ) ) {
+							$icon_source  = 'platform';
+							$icon_library = '';
+							$icon_value   = '';
+						}
+					}
+				} else {
+					$custom_icon_id = 0;
+					$icon_library   = '';
+					$icon_value     = '';
+				}
 
 				$social_links[] = array(
 					'platform'       => $platform,
 					'url'            => $url,
 					'custom_name'    => $custom_name,
 					'custom_icon_id' => $custom_icon_id,
+					'icon_source'    => $icon_source,
+					'icon_library'   => $icon_library,
+					'icon_value'     => $icon_value,
 					'open_new_tab'   => $open_new_tab,
 				);
 			}
@@ -287,6 +329,9 @@ class Sanitizer {
 					'url'            => (string) $settings[ $url_key ],
 					'custom_name'    => 'custom' === $platform ? $label : '',
 					'custom_icon_id' => 0,
+					'icon_source'    => 'platform',
+					'icon_library'   => '',
+					'icon_value'     => '',
 					'open_new_tab'   => $settings[ $new_tab_key ],
 				);
 			}
@@ -320,6 +365,9 @@ class Sanitizer {
 				'url'            => $legacy_url,
 				'custom_name'    => '',
 				'custom_icon_id' => 0,
+				'icon_source'    => 'platform',
+				'icon_library'   => '',
+				'icon_value'     => '',
 				'open_new_tab'   => 0,
 			);
 		}

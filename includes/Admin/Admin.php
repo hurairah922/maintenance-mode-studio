@@ -363,6 +363,14 @@ class Admin {
 		);
 
 		add_settings_field(
+			'mmsm_show_footer_section',
+			__( 'Show Footer Section', MMSM_TEXT_DOMAIN ),
+			array( $this, 'render_show_footer_section_field' ),
+			$this->page_slug,
+			'mmsm_advanced_section'
+		);
+
+		add_settings_field(
 			'mmsm_login_label',
 			__( 'Login Label', MMSM_TEXT_DOMAIN ),
 			array( $this, 'render_login_label_field' ),
@@ -962,6 +970,28 @@ class Admin {
 	}
 
 	/**
+	 * Render the footer visibility field.
+	 *
+	 * @return void
+	 */
+	public function render_show_footer_section_field() {
+		$settings = $this->get_settings();
+		?>
+		<label for="mmsm-show-footer-section">
+			<input
+				type="checkbox"
+				id="mmsm-show-footer-section"
+				name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[show_footer_section]"
+				value="1"
+				<?php checked( 1, (int) $settings['show_footer_section'] ); ?>
+			/>
+			<?php echo esc_html__( 'Render the footer panel under the main card.', MMSM_TEXT_DOMAIN ); ?>
+		</label>
+		<p class="description"><?php echo esc_html__( 'Turn this off to hide the footer meta, social links, and login shortcut area.', MMSM_TEXT_DOMAIN ); ?></p>
+		<?php
+	}
+
+	/**
 	 * Render the social links repeater field.
 	 *
 	 * @return void
@@ -1084,9 +1114,17 @@ class Admin {
 		$url             = isset( $item['url'] ) ? (string) $item['url'] : '';
 		$custom_name     = isset( $item['custom_name'] ) ? (string) $item['custom_name'] : '';
 		$custom_icon_id  = isset( $item['custom_icon_id'] ) ? absint( $item['custom_icon_id'] ) : 0;
+		$icon_source     = isset( $item['icon_source'] ) ? (string) $item['icon_source'] : 'platform';
+		$icon_library    = isset( $item['icon_library'] ) ? (string) $item['icon_library'] : 'dashicons';
+		$icon_value      = isset( $item['icon_value'] ) ? (string) $item['icon_value'] : 'share';
 		$open_new_tab    = ! empty( $item['open_new_tab'] );
 		$custom_icon_url = $custom_icon_id > 0 ? wp_get_attachment_url( $custom_icon_id ) : '';
 		$is_custom       = 'custom' === $platform;
+		$is_upload       = 'upload' === $icon_source;
+		$is_library      = 'library' === $icon_source;
+		$icon_sources    = SocialLinksComponent::get_icon_source_labels();
+		$icon_libraries  = SocialLinksComponent::get_icon_libraries();
+		$dashicons       = SocialLinksComponent::get_dashicon_choices();
 		?>
 		<div class="mmsm-social-item-group" data-social-item>
 			<div class="mmsm-social-item-toolbar">
@@ -1126,7 +1164,50 @@ class Admin {
 						value="<?php echo esc_attr( $custom_name ); ?>"
 					/>
 				</p>
-				<div class="mmsm-social-icon-picker">
+			</div>
+			<div class="mmsm-social-icon-picker">
+				<p>
+					<label><?php echo esc_html__( 'Icon Source', MMSM_TEXT_DOMAIN ); ?></label><br />
+					<select
+						class="mmsm-social-icon-source-select"
+						name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_links][<?php echo esc_attr( (string) $index ); ?>][icon_source]"
+					>
+						<?php foreach ( $icon_sources as $source_key => $source_label ) : ?>
+							<option value="<?php echo esc_attr( $source_key ); ?>" <?php selected( $icon_source, $source_key ); ?>>
+								<?php echo esc_html( $source_label ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+				</p>
+				<div class="mmsm-social-icon-library-fields<?php echo $is_library ? '' : ' is-hidden'; ?>" data-icon-library-fields>
+					<p>
+						<label><?php echo esc_html__( 'Icon Library', MMSM_TEXT_DOMAIN ); ?></label><br />
+						<select
+							class="mmsm-social-icon-library-select"
+							name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_links][<?php echo esc_attr( (string) $index ); ?>][icon_library]"
+						>
+							<?php foreach ( $icon_libraries as $library_key => $library ) : ?>
+								<option value="<?php echo esc_attr( $library_key ); ?>" <?php selected( $icon_library, $library_key ); ?>>
+									<?php echo esc_html( isset( $library['label'] ) ? (string) $library['label'] : $library_key ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</p>
+					<p>
+						<label><?php echo esc_html__( 'Library Icon', MMSM_TEXT_DOMAIN ); ?></label><br />
+						<select
+							class="mmsm-social-icon-value-select"
+							name="<?php echo esc_attr( MMSM_SETTINGS_OPTION ); ?>[social_links][<?php echo esc_attr( (string) $index ); ?>][icon_value]"
+						>
+							<?php foreach ( $dashicons as $dashicon_key => $dashicon_label ) : ?>
+								<option value="<?php echo esc_attr( $dashicon_key ); ?>" <?php selected( $icon_value, $dashicon_key ); ?>>
+									<?php echo esc_html( $dashicon_label ); ?>
+								</option>
+							<?php endforeach; ?>
+						</select>
+					</p>
+				</div>
+				<div class="mmsm-social-icon-upload-fields<?php echo $is_upload ? '' : ' is-hidden'; ?>" data-icon-upload-fields>
 					<input
 						type="hidden"
 						class="mmsm-social-icon-id"
@@ -1144,7 +1225,7 @@ class Admin {
 						<button type="button" class="button mmsm-upload-social-icon"><?php echo esc_html__( 'Choose icon', MMSM_TEXT_DOMAIN ); ?></button>
 						<button type="button" class="button-link-delete mmsm-remove-social-icon<?php echo 0 === $custom_icon_id ? ' is-hidden' : ''; ?>"><?php echo esc_html__( 'Remove icon', MMSM_TEXT_DOMAIN ); ?></button>
 					</p>
-					<p class="description"><?php echo esc_html__( 'Custom icons use the media library. Raster formats are recommended unless your site already allows safe SVG uploads.', MMSM_TEXT_DOMAIN ); ?></p>
+					<p class="description"><?php echo esc_html__( 'Uploaded icons use the media library. SVG, PNG, JPG, and WEBP are accepted when your site allows them.', MMSM_TEXT_DOMAIN ); ?></p>
 				</div>
 			</div>
 			<p>
@@ -1173,6 +1254,9 @@ class Admin {
 			'url'            => '',
 			'custom_name'    => '',
 			'custom_icon_id' => 0,
+			'icon_source'    => 'platform',
+			'icon_library'   => 'dashicons',
+			'icon_value'     => 'share',
 			'open_new_tab'   => 1,
 		);
 	}
@@ -1375,6 +1459,7 @@ class Admin {
 			),
 			'advanced'     => array(
 				'show_login_button',
+				'show_footer_section',
 				'login_label',
 			),
 		);

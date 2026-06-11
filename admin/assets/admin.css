@@ -54,9 +54,16 @@
 }
 
 .mmsm-settings-page .mmsm-social-custom-fields.is-hidden,
+.mmsm-settings-page .mmsm-social-icon-library-fields.is-hidden,
+.mmsm-settings-page .mmsm-social-icon-upload-fields.is-hidden,
 .mmsm-settings-page .mmsm-social-icon-preview.is-hidden,
 .mmsm-settings-page .mmsm-remove-social-icon.is-hidden {
 	display: none;
+}
+
+.mmsm-settings-page .mmsm-social-icon-picker {
+	border-top: 1px solid #f0f0f1;
+	padding-top: 12px;
 }
 
 .mmsm-settings-page .mmsm-social-icon-preview-wrap {

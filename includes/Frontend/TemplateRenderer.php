@@ -65,7 +65,7 @@ class TemplateRenderer {
 
 		$settings = Sanitizer::get_settings( $settings );
 		$template = $this->template_registry->resolve( (string) $settings['template_key'] );
-		$assets   = $this->enqueue_assets( $template );
+		$assets   = $this->enqueue_assets( $template, $settings );
 		$context  = $this->build_context( $settings, $template, $assets );
 		$renderer = $this;
 
@@ -115,7 +115,7 @@ class TemplateRenderer {
 	 * @param array<string,mixed> $template Template configuration.
 	 * @return array<string,array<int,string>>
 	 */
-	private function enqueue_assets( array $template ) {
+	private function enqueue_assets( array $template, array $settings ) {
 		$assets = array(
 			'styles'  => array(),
 			'scripts' => array(),
@@ -154,6 +154,11 @@ class TemplateRenderer {
 			}
 		}
 
+		if ( $this->should_enqueue_dashicons( $settings ) ) {
+			wp_enqueue_style( 'dashicons' );
+			$assets['styles'][] = 'dashicons';
+		}
+
 		if ( ! empty( $template['assets']['scripts'] ) && is_array( $template['assets']['scripts'] ) ) {
 			foreach ( $template['assets']['scripts'] as $script_handle ) {
 				wp_enqueue_script( $script_handle );
@@ -162,6 +167,31 @@ class TemplateRenderer {
 		}
 
 		return $assets;
+	}
+
+	/**
+	 * Determine whether the current page needs WordPress Dashicons.
+	 *
+	 * @param array<string,mixed> $settings Sanitized settings.
+	 * @return bool
+	 */
+	private function should_enqueue_dashicons( array $settings ) {
+		$social_links = isset( $settings['social_links'] ) && is_array( $settings['social_links'] ) ? $settings['social_links'] : array();
+
+		foreach ( $social_links as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+
+			$icon_source  = isset( $item['icon_source'] ) ? sanitize_key( $item['icon_source'] ) : '';
+			$icon_library = isset( $item['icon_library'] ) ? sanitize_key( $item['icon_library'] ) : '';
+
+			if ( 'library' === $icon_source && 'dashicons' === $icon_library ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

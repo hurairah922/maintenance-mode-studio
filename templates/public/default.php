@@ -34,13 +34,15 @@ defined( 'ABSPATH' ) || exit;
 					<?php echo $renderer->render_zone( 'main', $settings, $context ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 				</div>
 			</div>
-			<footer class="mmsm-panel mmsm-panel-footer">
-				<div class="mmsm-footer-meta">
-					<p class="mmsm-site-name"><?php echo esc_html( $context['site_name'] ); ?></p>
-					<p class="mmsm-site-copy"><?php echo esc_html__( 'Thanks for your patience while we fine-tune a few things.', MMSM_TEXT_DOMAIN ); ?></p>
-				</div>
-				<?php echo $renderer->render_zone( 'footer', $settings, $context ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
-			</footer>
+			<?php if ( ! empty( $settings['show_footer_section'] ) ) : ?>
+				<footer class="mmsm-panel mmsm-panel-footer">
+					<div class="mmsm-footer-meta">
+						<p class="mmsm-site-name"><?php echo esc_html( $context['site_name'] ); ?></p>
+						<p class="mmsm-site-copy"><?php echo esc_html__( 'Thanks for your patience while we fine-tune a few things.', MMSM_TEXT_DOMAIN ); ?></p>
+					</div>
+					<?php echo $renderer->render_zone( 'footer', $settings, $context ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+				</footer>
+			<?php endif; ?>
 		</main>
 	</div>
 	<?php wp_print_scripts( $context['assets']['scripts'] ); ?>

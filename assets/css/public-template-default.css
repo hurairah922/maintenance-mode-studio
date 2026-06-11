@@ -350,6 +350,13 @@ body.mmsm-maintenance-page {
 	object-fit: contain;
 }
 
+.mmsm-social-icon .dashicons {
+	width: 18px;
+	height: 18px;
+	font-size: 18px;
+	line-height: 18px;
+}
+
 .mmsm-social-icon text {
 	fill: currentColor;
 	font-family: Arial, sans-serif;

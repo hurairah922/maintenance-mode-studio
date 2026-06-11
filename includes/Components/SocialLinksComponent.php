@@ -37,6 +37,60 @@ class SocialLinksComponent implements ComponentInterface {
 	}
 
 	/**
+	 * Return supported icon source labels.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function get_icon_source_labels() {
+		return array(
+			'platform' => __( 'Platform default', MMSM_TEXT_DOMAIN ),
+			'library'  => __( 'WordPress icon library', MMSM_TEXT_DOMAIN ),
+			'upload'   => __( 'Uploaded SVG/image', MMSM_TEXT_DOMAIN ),
+		);
+	}
+
+	/**
+	 * Return installed icon libraries.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	public static function get_icon_libraries() {
+		$libraries = array(
+			'dashicons' => array(
+				'label' => __( 'WordPress Dashicons', MMSM_TEXT_DOMAIN ),
+				'icons' => self::get_dashicon_choices(),
+			),
+		);
+
+		/**
+		 * Filter available social icon libraries.
+		 *
+		 * @param array<string,array<string,mixed>> $libraries Available libraries.
+		 */
+		return apply_filters( 'mmsm_social_icon_libraries', $libraries );
+	}
+
+	/**
+	 * Return supported Dashicon choices.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function get_dashicon_choices() {
+		return array(
+			'admin-site'   => __( 'Site', MMSM_TEXT_DOMAIN ),
+			'admin-links'  => __( 'Link', MMSM_TEXT_DOMAIN ),
+			'email-alt'    => __( 'Email', MMSM_TEXT_DOMAIN ),
+			'external'     => __( 'External', MMSM_TEXT_DOMAIN ),
+			'facebook-alt' => __( 'Facebook', MMSM_TEXT_DOMAIN ),
+			'share'        => __( 'Share', MMSM_TEXT_DOMAIN ),
+			'share-alt'    => __( 'Share Alt', MMSM_TEXT_DOMAIN ),
+			'twitter'      => __( 'Twitter / X', MMSM_TEXT_DOMAIN ),
+			'video-alt3'   => __( 'Video', MMSM_TEXT_DOMAIN ),
+			'wordpress'    => __( 'WordPress', MMSM_TEXT_DOMAIN ),
+		);
+	}
+
+	/**
 	 * {@inheritDoc}
 	 */
 	public function get_key() {
@@ -85,6 +139,18 @@ class SocialLinksComponent implements ComponentInterface {
 					array(
 						'key' => 'custom_icon_id',
 						'type' => 'number',
+					),
+					array(
+						'key' => 'icon_source',
+						'type' => 'select',
+					),
+					array(
+						'key' => 'icon_library',
+						'type' => 'select',
+					),
+					array(
+						'key' => 'icon_value',
+						'type' => 'text',
 					),
 					array(
 						'key' => 'open_new_tab',
@@ -152,6 +218,9 @@ class SocialLinksComponent implements ComponentInterface {
 			$url            = isset( $item['url'] ) ? (string) $item['url'] : '';
 			$custom_name    = isset( $item['custom_name'] ) ? trim( (string) $item['custom_name'] ) : '';
 			$custom_icon_id = isset( $item['custom_icon_id'] ) ? absint( $item['custom_icon_id'] ) : 0;
+			$icon_source    = isset( $item['icon_source'] ) ? sanitize_key( $item['icon_source'] ) : '';
+			$icon_library   = isset( $item['icon_library'] ) ? sanitize_key( $item['icon_library'] ) : '';
+			$icon_value     = isset( $item['icon_value'] ) ? sanitize_key( $item['icon_value'] ) : '';
 			$new_tab        = ! empty( $item['open_new_tab'] );
 
 			if ( '' === $platform || ! isset( $defaults[ $platform ] ) ) {
@@ -167,7 +236,7 @@ class SocialLinksComponent implements ComponentInterface {
 			$label = 'custom' === $platform && '' !== $custom_name ? $custom_name : $defaults[ $platform ];
 
 			$links[] = array(
-				'icon'    => $this->get_icon_markup( $platform, $label, $custom_icon_id ),
+				'icon'    => $this->get_icon_markup( $platform, $label, $custom_icon_id, $icon_source, $icon_library, $icon_value ),
 				'label'   => $label,
 				'new_tab' => $new_tab && 'email' !== $platform,
 				'url'     => $url,
@@ -198,12 +267,24 @@ class SocialLinksComponent implements ComponentInterface {
 	 * @param string $platform Platform key.
 	 * @return string
 	 */
-	private function get_icon_markup( $platform, $label, $custom_icon_id ) {
-		if ( 'custom' === $platform ) {
+	private function get_icon_markup( $platform, $label, $custom_icon_id, $icon_source, $icon_library, $icon_value ) {
+		if ( '' === $icon_source && $custom_icon_id > 0 ) {
+			$icon_source = 'upload';
+		}
+
+		if ( 'upload' === $icon_source ) {
 			$custom_icon = $this->get_custom_icon_markup( $custom_icon_id, $label );
 
 			if ( '' !== $custom_icon ) {
 				return $custom_icon;
+			}
+		}
+
+		if ( 'library' === $icon_source ) {
+			$library_icon = $this->get_library_icon_markup( $icon_library, $icon_value, $label );
+
+			if ( '' !== $library_icon ) {
+				return $library_icon;
 			}
 		}
 
@@ -248,6 +329,40 @@ class SocialLinksComponent implements ComponentInterface {
 	}
 
 	/**
+	 * Return an icon from an installed icon library.
+	 *
+	 * @param string $library Library key.
+	 * @param string $icon_value Icon value within the library.
+	 * @param string $label Accessible label.
+	 * @return string
+	 */
+	private function get_library_icon_markup( $library, $icon_value, $label ) {
+		$libraries = self::get_icon_libraries();
+
+		if ( ! isset( $libraries[ $library ] ) ) {
+			return '';
+		}
+
+		$icons = isset( $libraries[ $library ]['icons'] ) && is_array( $libraries[ $library ]['icons'] )
+			? $libraries[ $library ]['icons']
+			: array();
+
+		if ( ! isset( $icons[ $icon_value ] ) ) {
+			return '';
+		}
+
+		if ( 'dashicons' === $library ) {
+			return sprintf(
+				'<span class="dashicons dashicons-%1$s" aria-label="%2$s"></span>',
+				esc_attr( $icon_value ),
+				esc_attr( $label )
+			);
+		}
+
+		return '';
+	}
+
+	/**
 	 * Return controlled inline SVG icon markup.
 	 *
 	 * @param string $platform Platform key.
@@ -278,6 +393,10 @@ class SocialLinksComponent implements ComponentInterface {
 				'img'    => array(
 					'src' => true,
 					'alt' => true,
+				),
+				'span'   => array(
+					'class' => true,
+					'aria-label' => true,
 				),
 				'svg'    => array(
 					'viewBox'   => true,
