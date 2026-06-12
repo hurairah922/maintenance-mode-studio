@@ -64,7 +64,7 @@ specs/prompts/codex/003-wordpress-org-submission-readiness.md
 Delete the active settings option during uninstall:
 
 ```php
-delete_option( 'maintenance_mode_settings' );
+delete_option( 'mmsm_maintenance_mode_settings' );
 ```
 
 Keep the existing legacy cleanup for:
@@ -253,7 +253,7 @@ If a local WordPress install is available, also test the generated ZIP through t
 
 The pass is complete when:
 
-* `uninstall.php` removes `maintenance_mode_settings` and preserves intended legacy cleanup.
+* `uninstall.php` removes `mmsm_maintenance_mode_settings` and preserves intended legacy cleanup.
 * Plugin metadata uses truthful shipped-feature copy and omits `Plugin URI` unless a real plugin page exists.
 * `readme.txt` is aligned with the shipped feature set and uses no more than five tags.
 * Admin JS user-facing strings are localized through WordPress JS i18n.
